@@ -141,7 +141,7 @@ def build_three_line_table(doc, title_text):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
 
-    col_widths = [3.6] + [3.1] * 4
+    col_widths = [4.5] + [3.0] * 4
     for row in table.rows:
         for cell, w in zip(row.cells, col_widths):
             cell.width = Cm(w)
@@ -204,7 +204,7 @@ for r, model in enumerate(MODELS, start=2):
             (f"{lo:.3f}–{hi:.3f}", 9, False, False),
         ])
 tabpfn_row1 = 2 + len(MODELS)
-set_cell_lines(table1.cell(tabpfn_row1, 0), [("TabPFN v3 (Prior Labs)", 11, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
+set_cell_lines(table1.cell(tabpfn_row1, 0), [("TabPFN v3 (Prior Labs)", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
 for c in range(4):
     auroc, lo, hi = AUROC_TABPFN[c]
     set_cell_lines(table1.cell(tabpfn_row1, c + 1), [
@@ -227,7 +227,7 @@ for r, model in enumerate(MODELS, start=2):
             (f"Cal {cal:.3f}", 9, cal_bold, False),
         ])
 tabpfn_row2 = 2 + len(MODELS)
-set_cell_lines(table2.cell(tabpfn_row2, 0), [("TabPFN v3 (Prior Labs)", 11, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
+set_cell_lines(table2.cell(tabpfn_row2, 0), [("TabPFN v3 (Prior Labs)", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
 for c in range(4):
     brier, cal = CAL_TABPFN[c]
     set_cell_lines(table2.cell(tabpfn_row2, c + 1), [
