@@ -82,37 +82,50 @@ for c in cohorts:
 
 plt.rcParams["font.family"] = "Times New Roman"
 
-fig, axes = plt.subplots(1, len(cohorts), figsize=(24, 5.5), constrained_layout=True)
+GRID_ROWS, GRID_COLS = 2, 3  # 5 cohort panels + 1 legend panel
+
+
+def panel_position(i):
+    return divmod(i, GRID_COLS)
+
+
+fig, axes = plt.subplots(GRID_ROWS, GRID_COLS, figsize=(12, 8), constrained_layout=True)
 
 x = np.arange(len(MODEL_ORDER))
 bar_w = 0.35
 
-for ax, c in zip(axes, cohorts):
-    for i, name in enumerate(MODEL_ORDER):
+for i, c in enumerate(cohorts):
+    row, col = panel_position(i)
+    ax = axes[row, col]
+    for j, name in enumerate(MODEL_ORDER):
         apparent, bc = c["data"][name]
         base = MODEL_COLORS[name]
-        ax.bar(x[i] - bar_w / 2, apparent, width=bar_w, color=lighten(base), edgecolor="black", linewidth=0.6)
-        ax.bar(x[i] + bar_w / 2, bc, width=bar_w, color=base, edgecolor="black", linewidth=0.6)
+        ax.bar(x[j] - bar_w / 2, apparent, width=bar_w, color=lighten(base), edgecolor="black", linewidth=0.6)
+        ax.bar(x[j] + bar_w / 2, bc, width=bar_w, color=base, edgecolor="black", linewidth=0.6)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(MODEL_ORDER, rotation=30, ha="right", fontsize=9)
-    ax.set_title(c["label"], fontsize=13, fontweight="bold")
+    ax.set_xticklabels(MODEL_ORDER, rotation=30, ha="right", fontsize=8)
+    ax.set_title(c["label"], fontsize=11, fontweight="bold")
     ax.set_ylim(0.4, 1.0)
     ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=9)
+    ax.tick_params(labelsize=8)
+    if col == 0:
+        ax.set_ylabel("AUROC", fontsize=9)
+    else:
+        ax.set_yticklabels([])
 
-axes[0].set_ylabel("AUROC", fontsize=11)
-
+legend_row, legend_col = panel_position(len(cohorts))
+legend_ax = axes[legend_row, legend_col]
+legend_ax.axis("off")
 legend_handles = [
     Patch(facecolor=lighten("#808080"), edgecolor="black", linewidth=0.6, label="Apparent"),
     Patch(facecolor="#808080", edgecolor="black", linewidth=0.6, label="Bias-corrected"),
 ]
-fig.legend(handles=legend_handles, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.08),
-           fontsize=11, frameon=False)
+legend_ax.legend(handles=legend_handles, loc="center", fontsize=11, frameon=False)
 
 fig.suptitle("Apparent vs. Bias-Corrected AUROC — All Cohorts\n(Harrell optimism-corrected bootstrap, 1,000 iterations)",
-             fontsize=15, fontweight="bold")
+             fontsize=14, fontweight="bold")
 
 fig.savefig(f"{FIG_DIR}/optimism_barchart.png", dpi=300, bbox_inches="tight")
 plt.close(fig)
