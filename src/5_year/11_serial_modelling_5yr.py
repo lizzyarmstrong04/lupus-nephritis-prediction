@@ -35,9 +35,8 @@ print(f"Predictors: {list(X.columns)}")
 print(f"\n⚠  EPV = {int(y.sum())}/{X.shape[1]} = {y.sum()/X.shape[1]:.1f} — interpret all metrics cautiously")
 print(f"   5×5-fold CV used (5×10-fold would give only 7 test patients per fold)\n")
 
-# ============================================================
 # Helpers
-# ============================================================
+
 def calibration_slope(y_true, y_prob):
     log_odds = np.log(np.clip(y_prob, 1e-6, 1-1e-6) / (1 - np.clip(y_prob, 1e-6, 1-1e-6)))
     m = LogisticRegression(fit_intercept=True, max_iter=1000)
@@ -77,9 +76,8 @@ def harrell_bootstrap(pipeline, X, y, n_boot=1000, seed=42):
         "bc_brier":       round(apparent_brier - np.mean(optimisms_brier), 3),
     }
 
-# ============================================================
 # Hyperparameter tuning (3-fold inner CV — small dataset)
-# ============================================================
+
 print("="*60)
 print("STEP 1 — Hyperparameter tuning (RandomizedSearchCV, 3-fold)")
 print("="*60)
@@ -141,9 +139,8 @@ for name, pipeline in base_pipelines.items():
     print(f"  Best CV AUROC: {search.best_score_:.3f}")
     print(f"  Best params:   {search.best_params_}")
 
-# ============================================================
 # Final models
-# ============================================================
+
 def make_rf(p):
     return RandomForestClassifier(
         n_estimators=p.get("clf__n_estimators", 100),
@@ -202,9 +199,8 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 
-# ============================================================
 # 5×5-fold cross-validation (appropriate for n=70)
-# ============================================================
+
 print("\n" + "="*60)
 print("STEP 2 — 5×5-fold cross-validation (n=70; 14 test pts/fold)")
 print("="*60)
@@ -245,9 +241,8 @@ for name, pipeline in MODELS.items():
     print(f"AUROC={mean_auroc:.3f} [{ci_auroc[0]:.3f}–{ci_auroc[1]:.3f}]  "
           f"Brier={mean_brier:.3f}  CalSlope={mean_slope:.3f}")
 
-# ============================================================
 # Harrell bootstrap
-# ============================================================
+
 print("\n" + "="*60)
 print("STEP 3 — Harrell optimism-corrected bootstrap (1000 iterations)")
 print("="*60)
@@ -261,9 +256,8 @@ for name, pipeline in MODELS.items():
           f"Optimism={result['optimism_auroc']:.3f}  "
           f"BC={result['bc_auroc']:.3f}")
 
-# ============================================================
 # Plots
-# ============================================================
+
 print("\nGenerating plots...")
 fig_roc, ax_roc = plt.subplots(figsize=(7, 6))
 ax_roc.plot([0, 1], [0, 1], "k--", lw=1, alpha=0.5, label="Chance")
@@ -300,9 +294,8 @@ fig_cal.savefig(f"{FIGURES_DIR}/calibration_curves_5yr_serial.png", dpi=200, bbo
 plt.close(fig_cal)
 print("  Saved: calibration_curves_5yr_serial.png")
 
-# ============================================================
 # Save results
-# ============================================================
+
 cv_rows, boot_rows, tune_rows = [], [], []
 for name in MODELS:
     cv = cv_results[name]

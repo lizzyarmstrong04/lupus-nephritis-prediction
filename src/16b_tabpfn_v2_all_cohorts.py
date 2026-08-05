@@ -26,7 +26,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 import tabpfn_client
 from tabpfn_client import TabPFNClassifier
 
-# ── Auth ───────────────────────────────────────────────────────────────────
+# Auth
 tabpfn_client.set_access_token(os.environ["TABPFN_TOKEN"])
 
 BASE  = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project"
@@ -34,14 +34,14 @@ PROC  = f"{BASE}/Data/Processed"
 OUT   = f"{BASE}/outputs"
 CKPT  = f"{OUT}/tabpfn_v3_checkpoint.pkl"   # incremental save
 
-# ── Calibration slope ──────────────────────────────────────────────────────
+# Calibration slope
 def calibration_slope(y_true, y_prob):
     lo = np.log(np.clip(y_prob, 1e-6, 1-1e-6) / (1 - np.clip(y_prob, 1e-6, 1-1e-6)))
     m  = LogisticRegression(fit_intercept=True, max_iter=1000)
     m.fit(lo.reshape(-1, 1), y_true)
     return float(m.coef_[0][0])
 
-# ── Load checkpoint (resume if a previous run was interrupted) ─────────────
+# Load checkpoint (resume if a previous run was interrupted)
 if os.path.exists(CKPT):
     with open(CKPT, "rb") as f:
         checkpoint = pickle.load(f)
@@ -54,7 +54,7 @@ def save_ckpt():
     with open(CKPT, "wb") as f:
         pickle.dump(checkpoint, f)
 
-# ── CV with retry + incremental save ──────────────────────────────────────
+# CV with retry + incremental save
 def run_cv(X, y, label, n_splits=10, n_repeats=5,
            max_retries=5, retry_sleep=15, fold_pause=3):
 
@@ -140,7 +140,7 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
           f"Brier={result['CV Brier Score']:.3f}  Slope={result['CV Calibration Slope']:.3f}")
     return result
 
-# ── Load datasets ──────────────────────────────────────────────────────────
+# Load datasets
 df1   = pd.read_excel(f"{PROC}/lupus_1yr_selected_clean.xlsx")
 df5   = pd.read_excel(f"{PROC}/lupus_5yr_selected_clean.xlsx")
 df_e5 = pd.read_excel(f"{PROC}/esrd_5yr_selected.xlsx")
@@ -153,12 +153,12 @@ COHORTS = [
     ("esrd_10yr",  df_e10.drop(columns=["esrd_10yr"]),df_e10["esrd_10yr"].astype(int)),
 ]
 
-# ── Run all cohorts ────────────────────────────────────────────────────────
+# Run all cohorts
 results = {}
 for label, X, y in COHORTS:
     results[label] = run_cv(X, y, label)
 
-# ── Load existing model results to build comparison tables ─────────────────
+# Load existing model results to build comparison tables
 cv1   = pd.read_excel(f"{OUT}/1yr_model_results.xlsx",       sheet_name="CV Results")
 cv5   = pd.read_excel(f"{OUT}/5yr_model_results.xlsx",       sheet_name="CV Results")
 cve5  = pd.read_excel(f"{OUT}/esrd/esrd_model_results.xlsx", sheet_name="5yr CV Results")
@@ -175,7 +175,7 @@ compare = {
     "esrd_10yr":  append_tabpfn(cve10, results["esrd_10yr"]),
 }
 
-# ── Print summary ──────────────────────────────────────────────────────────
+# Print summary
 for label, df in compare.items():
     print(f"\n{'='*70}")
     print(f"COMPARISON — {label.upper()}")
@@ -183,7 +183,7 @@ for label, df in compare.items():
     print(df[["Model","CV AUROC (mean)","CV AUROC 95% CI lower",
               "CV AUROC 95% CI upper","CV Brier Score","CV Calibration Slope"]].to_string(index=False))
 
-# ── Save ───────────────────────────────────────────────────────────────────
+# Save
 out_path = f"{OUT}/tabpfn_v3_all_cohorts.xlsx"
 with pd.ExcelWriter(out_path, engine="openpyxl") as w:
     for label, df in compare.items():

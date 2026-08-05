@@ -22,16 +22,14 @@ OUTCOME_COL_LAX = (
     "creatinine, RRT "
 )   # no suffix = uses last known outcome even if <5yr follow-up
 
-# ============================================================
 # 1. Load & restrict to index biopsies (Bx number = 1)
-# ============================================================
+
 df = pd.read_excel(RAW_PATH)
 print(f"Raw data: {df.shape[0]} rows × {df.shape[1]} columns")
 
 df_idx = df[df[BX_NUM] == 1].copy().reset_index(drop=True)
 print(f"Index biopsies (Bx=1): {len(df_idx)}")
 
-# ============================================================
 # 2. Outcome coding
 #    Binary: 1 = codes 2, 3, 5 (renal progression)
 #            0 = code 1 only  (stable eGFR>80 at 5yr)
@@ -39,7 +37,7 @@ print(f"Index biopsies (Bx=1): {len(df_idx)}")
 #              codes 6, 7, 8 (eGFR decline not meeting composite)
 #              X  (insufficient follow-up)
 #              NaN (missing)
-# ============================================================
+
 EVENT_CODES   = {2, 3, 5}
 CONTROL_CODES = {1}
 EXCLUDE_CODES = {4, 6, 7, 8}
@@ -76,7 +74,7 @@ outcome_strict, vc_strict = apply_outcome(df_idx[OUTCOME_COL_STRICT], "strict")
 print(f"\nRaw value counts in outcome column:")
 print(vc_strict.to_string())
 
-# ── Exclusion breakdown ──────────────────────────────────────
+# Exclusion breakdown
 n_total_idx   = len(df_idx)
 n_event       = int((outcome_strict == 1).sum())
 n_nonevent    = int((outcome_strict == 0).sum())
@@ -126,7 +124,7 @@ print(f"    Event rate:                               {n_event/(n_event+n_noneve
 print(f"\n  EPV check (EPV-10 rule):")
 print(f"    {n_event} events → max {n_event // 10} predictors")
 
-# ── Also show the lax version for comparison ─────────────────
+# Also show the lax version for comparison
 print(f"\n{'='*65}")
 print("COMPARISON: Lax version (last-known-outcome, no X-coding)")
 print(f"{'='*65}")
@@ -143,7 +141,7 @@ print(f"  NaN: {n_nan_lax},  X: {n_x_lax}")
 print(f"  ⚠  Non-events here include patients with <5yr follow-up coded as stable")
 print(f"     → inflates non-events artificially; strict version preferred")
 
-# ── Event breakdown by code ───────────────────────────────────
+# Event breakdown by code
 print(f"\n{'='*65}")
 print("EVENT BREAKDOWN (strict version)")
 print(f"{'='*65}")
@@ -151,9 +149,8 @@ for c, label in [(2, "Creatinine doubling"), (3, "RRT"), (5, "Death on RRT")]:
     n = (coded == c).sum()
     print(f"  Code {c} — {label}: {n}")
 
-# ============================================================
 # 3. Build and save the dataset
-# ============================================================
+
 df_out = df_idx[outcome_strict.notna()].copy()
 df_out["esrd_5yr"] = outcome_strict[outcome_strict.notna()].values
 

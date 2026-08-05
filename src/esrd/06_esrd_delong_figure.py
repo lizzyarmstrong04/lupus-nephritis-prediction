@@ -13,7 +13,7 @@ OUT_PATH = ("/Users/elizabetharmstrong/Library/CloudStorage/"
             "OneDrive-ImperialCollegeLondon/Lupus Project/"
             "outputs/esrd/figures/esrd_delong_figure.png")
 
-# ── Data ──────────────────────────────────────────────────────
+# Data
 MODELS  = ["Logistic\nRegression", "Random\nForest", "XGBoost", "LightGBM"]
 AUROC_5  = [0.752, 0.795, 0.779, 0.798]
 AUROC_10 = [0.778, 0.804, 0.809, 0.804]
@@ -22,7 +22,7 @@ AUROC_10 = [0.778, 0.804, 0.809, 0.804]
 SIG_5  = [(0, 1, "p=0.007"), (0, 3, "p=0.028")]
 SIG_10 = [(0, 1, "p=0.021"), (0, 2, "p=0.017"), (0, 3, "p=0.021")]
 
-# ── Palette (validated slots 1–4, light mode) ─────────────────
+# Palette (validated slots 1–4, light mode)
 COLORS = {
     "Logistic\nRegression": "#2a78d6",   # blue
     "Random\nForest":       "#1baf7a",   # aqua
@@ -34,7 +34,7 @@ INK      = "#0b0b0b"
 INK_MUT  = "#898781"
 GRIDLINE = "#e1e0d9"
 
-# ── Significance bracket helper ────────────────────────────────
+# Significance bracket helper
 def sig_bracket(ax, x1, x2, y_top, tick_h, label, fontsize=8):
     """Draw a bracket between bars at x1 and x2 with a label."""
     ax.plot([x1, x1, x2, x2],
@@ -44,7 +44,7 @@ def sig_bracket(ax, x1, x2, y_top, tick_h, label, fontsize=8):
             ha="center", va="bottom", fontsize=fontsize,
             color=INK, fontweight="bold")
 
-# ── Figure ────────────────────────────────────────────────────
+# Figure
 fig, axes = plt.subplots(1, 2, figsize=(13, 6),
                          facecolor=SURFACE, sharey=False)
 fig.subplots_adjust(wspace=0.08)
@@ -109,7 +109,7 @@ for ax, (title, aurocs, sig_pairs, ylo, yhi) in zip(axes, datasets):
 # Hide right panel y-axis label (panels share implicit axis)
 axes[1].set_ylabel("")
 
-# ── Legend ───────────────────────────────────────────────────
+# Legend
 legend_handles = [
     mpatches.Patch(color=COLORS[m], label=m.replace("\n", " "))
     for m in MODELS

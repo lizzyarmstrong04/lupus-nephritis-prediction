@@ -33,15 +33,13 @@ OUT_DIR       = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-Imperia
 FIG_DIR       = f"{OUT_DIR}/figures"
 os.makedirs(FIG_DIR, exist_ok=True)
 
-# ============================================================
 # Helpers
-# ============================================================
+
 def calibration_slope(y_true, y_prob):
     log_odds = np.log(np.clip(y_prob, 1e-6, 1-1e-6) / (1 - np.clip(y_prob, 1e-6, 1-1e-6)))
     m = LogisticRegression(fit_intercept=True, max_iter=1000)
     m.fit(log_odds.reshape(-1, 1), y_true)
     return float(m.coef_[0][0])
-
 
 def harrell_bootstrap(pipeline, X, y, n_boot=1000, seed=42):
     """
@@ -87,10 +85,8 @@ def harrell_bootstrap(pipeline, X, y, n_boot=1000, seed=42):
         "bc_brier":       round(apparent_brier - np.mean(opt_brier), 3),
     }
 
-
-# ============================================================
 # Main modelling function
-# ============================================================
+
 def run_models(data_path, outcome_col, horizon_label):
     df = pd.read_excel(data_path)
     X  = df.drop(columns=[outcome_col])
@@ -103,7 +99,7 @@ def run_models(data_path, outcome_col, horizon_label):
 
     spw = round((y == 0).sum() / (y == 1).sum(), 2)
 
-    # ── Hyperparameter tuning ─────────────────────────────────
+    # Hyperparameter tuning
     print("\n  Tuning hyperparameters (5-fold, RandomizedSearch, n_iter=40)...")
     inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
@@ -195,7 +191,7 @@ def run_models(data_path, outcome_col, horizon_label):
             ("clf", make_lgbm(best_params["LightGBM"]))]),
     }
 
-    # ── 5×10-fold CV ──────────────────────────────────────────
+    # 5×10-fold CV
     print("\n  Running 5×10-fold CV...")
     CV = RepeatedStratifiedKFold(n_splits=10, n_repeats=5, random_state=42)
     cv_results = {}
@@ -226,7 +222,7 @@ def run_models(data_path, outcome_col, horizon_label):
         print(f"    {name:<22} AUROC={mean_auroc:.3f} [{ci_lo:.3f}–{ci_hi:.3f}]  "
               f"Brier={np.mean(fold_briers):.3f}  Slope={np.mean(fold_slopes):.3f}")
 
-    # ── Harrell bootstrap (1,000 iterations) ──────────────────
+    # Harrell bootstrap (1,000 iterations)
     print("\n  Running Harrell bootstrap (1,000 iterations)...")
     boot_results = {}
     for name, pipeline in MODELS.items():
@@ -236,7 +232,7 @@ def run_models(data_path, outcome_col, horizon_label):
         print(f"      Apparent={r['apparent_auroc']}  Optimism={r['optimism_auroc']}  "
               f"BC={r['bc_auroc']}")
 
-    # ── ROC curves ────────────────────────────────────────────
+    # ROC curves
     MODEL_COLORS = {
         "Logistic Regression": "#2a78d6",
         "Random Forest":       "#1baf7a",
@@ -277,7 +273,7 @@ def run_models(data_path, outcome_col, horizon_label):
     plt.close("all")
     print(f"  Saved: esrd_{tag}.png")
 
-    # ── Collate results ───────────────────────────────────────
+    # Collate results
     cv_rows = []
     boot_rows = []
     for name in MODELS:
@@ -303,16 +299,14 @@ def run_models(data_path, outcome_col, horizon_label):
 
     return pd.DataFrame(cv_rows), pd.DataFrame(boot_rows), cv_results, best_params
 
-
-# ============================================================
 # Run for 5-year and 10-year ESRD
-# ============================================================
+
 cv5,  boot5,  oof5,  params5  = run_models(
     f"{PROCESSED_DIR}/esrd_5yr_selected.xlsx",  "esrd_5yr",  "5-Year")
 cv10, boot10, oof10, params10 = run_models(
     f"{PROCESSED_DIR}/esrd_10yr_selected.xlsx", "esrd_10yr", "10-Year")
 
-# ── Save to Excel ─────────────────────────────────────────────
+# Save to Excel
 with pd.ExcelWriter(f"{OUT_DIR}/esrd_model_results.xlsx", engine="openpyxl") as w:
     cv5.to_excel(w,   sheet_name="5yr CV Results",      index=False)
     boot5.to_excel(w, sheet_name="5yr Bootstrap",       index=False)
@@ -325,7 +319,7 @@ with open(f"{OUT_DIR}/esrd_best_params.json", "w") as f:
 print(f"\nSaved: {OUT_DIR}/esrd_model_results.xlsx")
 print(f"Saved: {OUT_DIR}/esrd_best_params.json")
 
-# ── Summary comparison figure ─────────────────────────────────
+# Summary comparison figure
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 for ax, res, horizon in zip(axes, [cv5, cv10], ["5-Year", "10-Year"]):
     COLORS = {"Logistic Regression": "#2a78d6", "Random Forest": "#1baf7a",

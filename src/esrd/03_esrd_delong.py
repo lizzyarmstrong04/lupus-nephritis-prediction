@@ -27,8 +27,7 @@ OUT_DIR       = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-Imperia
 with open(f"{OUT_DIR}/esrd_best_params.json") as f:
     BEST_PARAMS = json.load(f)
 
-
-# ── DeLong implementation ────────────────────────────────────
+# DeLong implementation
 def _compute_midrank(x):
     J = np.argsort(x)
     Z = x[J]; N = len(x); T = np.zeros(N, dtype=float); i = 0
@@ -65,8 +64,7 @@ def bonferroni_holm(p_values):
     for i in range(1, n): p_adj[order[i]] = max(p_adj[order[i]], p_adj[order[i-1]])
     return p_adj.tolist()
 
-
-# ── Model builder (uses saved best params) ────────────────────
+# Model builder (uses saved best params)
 def build_models(horizon_key, scale_pos_weight):
     p_rf   = BEST_PARAMS[horizon_key]["Random Forest"]
     p_xgb  = BEST_PARAMS[horizon_key]["XGBoost"]
@@ -106,8 +104,7 @@ def build_models(horizon_key, scale_pos_weight):
                 class_weight="balanced", verbose=-1, random_state=42))]),
     }
 
-
-# ── OOF CV + DeLong ──────────────────────────────────────────
+# OOF CV + DeLong
 def run_delong(data_path, outcome_col, horizon_key, cohort_name):
     df  = pd.read_excel(data_path)
     X   = df.drop(columns=[outcome_col])
@@ -154,8 +151,7 @@ def run_delong(data_path, outcome_col, horizon_key, cohort_name):
               f"{r['Significant (p<0.05)']}")
     return rows
 
-
-# ── Run ───────────────────────────────────────────────────────
+# Run
 all_rows = []
 all_rows.extend(run_delong(
     f"{PROCESSED_DIR}/esrd_5yr_selected.xlsx",  "esrd_5yr",  "5yr",  "ESRD 5-Year"))

@@ -24,9 +24,8 @@ PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-Imperia
 OUTPUTS_DIR   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs"
 FIGURES_DIR   = f"{OUTPUTS_DIR}/figures"
 
-# ============================================================
 # Helpers
-# ============================================================
+
 def calibration_slope(y_true, y_prob):
     log_odds = np.log(np.clip(y_prob, 1e-6, 1-1e-6) / (1 - np.clip(y_prob, 1e-6, 1-1e-6)))
     m = LogisticRegression(fit_intercept=True, max_iter=1000)
@@ -42,7 +41,7 @@ def run_tabpfn(X, y, label):
     def clf_factory():
         return TabPFNClassifier(device="cpu", N_ensemble_configurations=32, seed=42)
 
-    # ── 5×10-fold CV ──────────────────────────────────────────
+    # 5×10-fold CV
     print("\n  Running 5×10-fold CV...")
     CV = RepeatedStratifiedKFold(n_splits=10, n_repeats=5, random_state=42)
     fold_aurocs, fold_briers, fold_slopes = [], [], []
@@ -87,25 +86,22 @@ def run_tabpfn(X, y, label):
         "fold_aurocs": fold_aurocs,
     }
 
-# ============================================================
 # Run on 1-year dataset
-# ============================================================
+
 df1 = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx")
 X1  = df1.drop(columns=["flare_1yr"])
 y1  = df1["flare_1yr"].astype(int)
 res_1yr = run_tabpfn(X1, y1, "1-Year Flare")
 
-# ============================================================
 # Run on 5-year dataset
-# ============================================================
+
 df5 = pd.read_excel(f"{PROCESSED_DIR}/lupus_5yr_selected_clean.xlsx")
 X5  = df5.drop(columns=["flare_5yr"])
 y5  = df5["flare_5yr"].astype(int)
 res_5yr = run_tabpfn(X5, y5, "5-Year Flare")
 
-# ============================================================
 # Load existing results and build comparison table
-# ============================================================
+
 existing_1yr = pd.read_excel(f"{OUTPUTS_DIR}/1yr_model_results.xlsx",
                               sheet_name="CV Results")
 existing_5yr = pd.read_excel(f"{OUTPUTS_DIR}/5yr_model_results.xlsx",
@@ -143,9 +139,8 @@ with pd.ExcelWriter(f"{OUTPUTS_DIR}/tabpfn_comparison.xlsx", engine="openpyxl") 
     compare_5yr.to_excel(writer, sheet_name="5yr", index=False)
 print(f"\nSaved: {OUTPUTS_DIR}/tabpfn_comparison.xlsx")
 
-# ============================================================
 # Comparison bar chart — AUROC across models, both horizons
-# ============================================================
+
 MODEL_COLORS = {
     "Logistic Regression": "#1f77b4",
     "Random Forest":       "#ff7f0e",

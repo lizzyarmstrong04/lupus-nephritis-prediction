@@ -6,9 +6,8 @@ warnings.filterwarnings("ignore")
 PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUTCOME_COL   = "flare_5yr"
 
-# ============================================================
 # Column definitions
-# ============================================================
+
 DELTA_COLS = {
     "delta_chronic_gloms":    "% chronic gloms(%of total)",
     "delta_active_gloms":     "% active gloms (%of those not globally sclerosed)",
@@ -35,17 +34,15 @@ SINGLE_BX_COLS = [
     "Age at biopsy",
 ]
 
-# ============================================================
 # 1. Load
-# ============================================================
+
 df = pd.read_excel(f"{PROCESSED_DIR}/lupus_5yr_flare_dataset.xlsx")
 print(f"Loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 
-# ============================================================
 # 2. Create proxy patient ID (DOB + gender)
 #    DOB is a true per-patient fixed value; combined with gender
 #    it gives 634 unique patient groups (max 8 biopsies/group)
-# ============================================================
+
 df[DATE_COL] = pd.to_datetime(df[DATE_COL])
 df["patient_id"] = df["DOB"].astype(str) + "|" + df["Gender (1=male, 2=female)"].astype(str)
 
@@ -59,9 +56,8 @@ df["log_proteinuria"] = np.log(pd.to_numeric(df[PROT_COL], errors="coerce").clip
 # Sort: patient → biopsy date → biopsy number (tie-break)
 df = df.sort_values(["patient_id", DATE_COL, BX_NUM]).reset_index(drop=True)
 
-# ============================================================
 # 3. Identify serial patients (≥2 biopsies in 5yr cohort)
-# ============================================================
+
 group_sizes = df.groupby("patient_id").size()
 serial_ids  = group_sizes[group_sizes >= 2].index
 
@@ -73,11 +69,10 @@ print(f"\n  Group size distribution:")
 for size, count in group_sizes.value_counts().sort_index().items():
     print(f"    {size} biopsy/biopsies: {count} patient(s)")
 
-# ============================================================
 # 4. Build serial dataset
 #    For each serial patient: most recent biopsy = index biopsy
 #    Deltas = most_recent − immediately_preceding
-# ============================================================
+
 records = []
 
 for pid in serial_ids:
@@ -121,9 +116,8 @@ for pid in serial_ids:
 
 result = pd.DataFrame(records)
 
-# ============================================================
 # 5. Summary
-# ============================================================
+
 n_serial   = len(result)
 n_events   = int(result[OUTCOME_COL].sum())
 event_rate = n_events / n_serial * 100
@@ -156,9 +150,8 @@ print(f"  Median:  {result['time_between_bx_months'].median():.1f}")
 print(f"  Min:     {result['time_between_bx_months'].min():.1f}")
 print(f"  Max:     {result['time_between_bx_months'].max():.1f}")
 
-# ============================================================
 # 6. Save
-# ============================================================
+
 output_path = f"{PROCESSED_DIR}/lupus_5yr_serial_dataset.xlsx"
 result.to_excel(output_path, index=False)
 print(f"\nSaved: {output_path}")

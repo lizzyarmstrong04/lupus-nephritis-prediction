@@ -15,13 +15,13 @@ from matplotlib.patches import Patch
 OUT_DIR   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs"
 ESRD_DIR  = f"{OUT_DIR}/esrd"
 
-# ── Load tables ───────────────────────────────────────────────
+# Load tables
 esrd5  = pd.read_excel(f"{ESRD_DIR}/esrd_shap_table_5yr.xlsx",   index_col=0)["Mean across models"]
 esrd10 = pd.read_excel(f"{ESRD_DIR}/esrd_shap_table_10yr.xlsx",  index_col=0)["Mean across models"]
 fl1    = pd.read_excel(f"{OUT_DIR}/shap_importance_table.xlsx",   index_col=0)["Mean across models"]
 fl5    = pd.read_excel(f"{OUT_DIR}/shap_importance_table_5yr.xlsx", index_col=0)["Mean across models"]
 
-# ── Rename flare 5yr truncated names to match ESRD short names ─
+# Rename flare 5yr truncated names to match ESRD short names
 RENAME_FL5 = {
     "% chronic gloms(%of total)":              "% chronic gloms",
     "Age at biopsy":                           "Age at biopsy",
@@ -46,7 +46,7 @@ fl5.index = [next((v for k, v in RENAME_FL5.items()
                    if k.startswith(i.rstrip("…")) or i == k), i)
              for i in fl5.index]
 
-# ── Union of all features ──────────────────────────────────────
+# Union of all features
 all_feats = list(dict.fromkeys(
     list(esrd5.index) + list(esrd10.index) +
     list(fl1.index)   + list(fl5.index)
@@ -69,7 +69,7 @@ df_norm = df_norm.sort_values("_mean")
 df_norm = df_norm.drop(columns="_mean")
 df      = df.loc[df_norm.index]
 
-# ── Figure ─────────────────────────────────────────────────────
+# Figure
 COLORS = {
     "ESRD 5-year":  "#c51b7d",
     "ESRD 10-year": "#de77ae",

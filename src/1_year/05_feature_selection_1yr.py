@@ -12,9 +12,8 @@ OUTCOME_COL = "flare_1yr"
 ID_COL = "Lizzy Biopsy Database ID number (PLEASE KEEP THIS COLUMN FOR REFERENCE)"
 EPV_MAX = 12
 
-# ============================================================
 # 1. Load dataset
-# ============================================================
+
 df = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_imputed.xlsx")
 print(f"Loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 
@@ -22,10 +21,8 @@ y = df[OUTCOME_COL].copy()
 n_events = int(y.sum())
 print(f"Outcome events: {n_events}  →  EPV hard cap: {EPV_MAX} predictors")
 
-# ============================================================
 # 2. Explicitly drop leakage and non-predictor columns
 #    Leakage = any measurement taken AFTER biopsy/baseline
-# ============================================================
 
 # --- 2a. Always exclude (ID + outcome) ---
 always_drop = [ID_COL, OUTCOME_COL]
@@ -177,9 +174,8 @@ print(f"  → {X.shape[1]} baseline numeric features to evaluate")
 
 removal_log = {}  # track which step removed each feature
 
-# ============================================================
 # 3a. Drop near-constant binary variables (one class > 90%)
-# ============================================================
+
 binary_cols = [c for c in X.columns if X[c].dropna().isin([0, 1]).all()]
 dominant_binary = []
 for c in binary_cols:
@@ -194,9 +190,8 @@ print(f"Removed {len(dominant_binary)} features  →  {X.shape[1]} remaining")
 for c, pct in dominant_binary:
     print(f"  [-] {c}  ({pct}% in majority class)")
 
-# ============================================================
 # 3b. Remove low-variance features (threshold = 0.01)
-# ============================================================
+
 variances = X.var()
 low_var = variances[variances < 0.01].index.tolist()
 for c in low_var:
@@ -207,9 +202,8 @@ print(f"Removed {len(low_var)} features  →  {X.shape[1]} remaining")
 for c in low_var:
     print(f"  [-] {c}  (var={variances[c]:.5f})")
 
-# ============================================================
 # 4. Remove highly correlated features (threshold = 0.8)
-# ============================================================
+
 print(f"\n--- STEP 4: High correlation removal (r > 0.8) ---")  # noqa
 corr_removed = []
 changed = True
@@ -231,9 +225,8 @@ print(f"Removed {len(corr_removed)} features  →  {X.shape[1]} remaining")
 for removed, kept, r in corr_removed:
     print(f"  [-] {removed[:80]}  (r={r} with '{kept[:60]}')")
 
-# ============================================================
 # 5. Remove high-VIF features (threshold = 10)
-# ============================================================
+
 def calculate_vif(X_df):
     scaler = StandardScaler()
     Xs = pd.DataFrame(scaler.fit_transform(X_df), columns=X_df.columns)
@@ -261,10 +254,9 @@ vif_final = calculate_vif(X)
 print(f"\nFinal VIF values after step 5:")
 print(vif_final.to_string(index=False))
 
-# ============================================================
 # 6. LASSO with hard cap at EPV_MAX predictors
 #    Decrease C (increase penalty) until ≤ EPV_MAX features remain
-# ============================================================
+
 print(f"\n--- STEP 6: LASSO (enforce hard cap of {EPV_MAX} predictors) ---")
 print(f"Features entering LASSO: {X.shape[1]}")
 
@@ -325,9 +317,8 @@ if X.shape[1] > EPV_MAX:
 else:
     print(f"{X.shape[1]} features ≤ {EPV_MAX}  →  LASSO not needed")
 
-# ============================================================
 # 7. Final summary
-# ============================================================
+
 print(f"\n{'='*65}")
 print(f"FINAL SELECTED FEATURES  ({X.shape[1]} predictors / {n_events} events)")
 print(f"{'='*65}")
@@ -338,9 +329,8 @@ print(f"\n--- Removal log (all steps) ---")
 for col, reason in removal_log.items():
     print(f"  {reason[:30]}  |  {col[:80]}")
 
-# ============================================================
 # 8. Save
-# ============================================================
+
 df_out = pd.concat([y.reset_index(drop=True), X.reset_index(drop=True)], axis=1)
 output_path = f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx"
 df_out.to_excel(output_path, index=False)

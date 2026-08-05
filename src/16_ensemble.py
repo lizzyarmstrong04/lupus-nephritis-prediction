@@ -101,9 +101,8 @@ def run_cv(models_dict, X, y, label):
 
     return results
 
-# ============================================================
 # Build models
-# ============================================================
+
 def get_model_factories(bp, scale_pos_weight=1.0):
     """Return dict of zero-arg factory functions, one per model."""
     return {
@@ -140,23 +139,22 @@ def get_model_factories(bp, scale_pos_weight=1.0):
         "TabPFN": lambda: TabPFNClassifier(device="cpu", N_ensemble_configurations=32, seed=42),
     }
 
-# ── 1-year ────────────────────────────────────────────────────
+# 1-year
 df1 = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx")
 X1, y1 = df1.drop(columns=["flare_1yr"]), df1["flare_1yr"].astype(int)
 with open(f"{OUTPUTS_DIR}/1yr_best_params.json") as f:
     bp1 = json.load(f)
 res1 = run_cv(get_model_factories(bp1, scale_pos_weight=3.34), X1, y1, "1-YEAR FLARE")
 
-# ── 5-year ────────────────────────────────────────────────────
+# 5-year
 df5 = pd.read_excel(f"{PROCESSED_DIR}/lupus_5yr_selected_clean.xlsx")
 X5, y5 = df5.drop(columns=["flare_5yr"]), df5["flare_5yr"].astype(int)
 with open(f"{OUTPUTS_DIR}/5yr_best_params.json") as f:
     bp5 = json.load(f)
 res5 = run_cv(get_model_factories(bp5, scale_pos_weight=round(190/166, 2)), X5, y5, "5-YEAR FLARE")
 
-# ============================================================
 # Figure — AUROC for all models + ensembles, both horizons
-# ============================================================
+
 MODEL_COLORS = {
     "Logistic Regression":         "#1f77b4",
     "Random Forest":               "#ff7f0e",

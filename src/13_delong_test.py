@@ -27,9 +27,8 @@ from lightgbm import LGBMClassifier
 PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUTPUTS_DIR   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs"
 
-# ============================================================
 # DeLong's test (fast implementation)
-# ============================================================
+
 def _compute_midrank(x):
     J = np.argsort(x)
     Z = x[J]
@@ -91,9 +90,8 @@ def bonferroni_holm(p_values):
         p_adj[order[i]] = max(p_adj[order[i]], p_adj[order[i-1]])
     return p_adj.tolist()
 
-# ============================================================
 # Model builders (mirror each modelling script exactly)
-# ============================================================
+
 def build_models(best_params, scale_pos_weight):
     def make_rf(p):
         return RandomForestClassifier(
@@ -202,9 +200,8 @@ def run_delong(cohort_name, X, y, best_params, scale_pos_weight, n_splits, n_rep
               f"{r['Significant (p<0.05)']:>5}")
     return rows
 
-# ============================================================
 # COHORT CONFIGS
-# ============================================================
+
 cohorts = []
 
 # 1-year
@@ -245,16 +242,14 @@ X_serial  = df_serial.drop(columns=["flare_5yr"])
 y_serial  = df_serial["flare_5yr"].astype(int)
 cohorts.append(("Serial Biopsy", X_serial, y_serial, params_serial, round(36/34, 2), 5, 5))
 
-# ============================================================
 # RUN
-# ============================================================
+
 all_rows = []
 for args in cohorts:
     all_rows.extend(run_delong(*args))
 
-# ============================================================
 # SAVE
-# ============================================================
+
 df_out = pd.DataFrame(all_rows)
 output_path = f"{OUTPUTS_DIR}/delong_test_results.xlsx"
 

@@ -39,9 +39,8 @@ OUTCOME_10YR = (
 )
 ESRD_CODES = [2, 3, 5]   # creatinine doubling, RRT, death on RRT
 
-# ============================================================
 # Leakage list  (same as flare analysis + flare outcomes)
-# ============================================================
+
 NAMED_LEAKAGE = [
     # 1-year creatinine and derived columns
     "Creatinine at one year in mg/dl (/88.42 conversion factor)",
@@ -182,15 +181,13 @@ LEAKAGE_KEYWORDS = [
 # ID column — must always be excluded (not a predictor)
 ID_COL = "Lizzy Biopsy Database ID number (PLEASE KEEP THIS COLUMN FOR REFERENCE)"
 
-# ============================================================
 # Helper functions
-# ============================================================
+
 def calculate_vif(X_df):
     scaler = StandardScaler()
     Xs = pd.DataFrame(scaler.fit_transform(X_df), columns=X_df.columns)
     vifs = [variance_inflation_factor(Xs.values, i) for i in range(Xs.shape[1])]
     return pd.DataFrame({"Feature": X_df.columns, "VIF": vifs}).sort_values("VIF", ascending=False)
-
 
 def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col):
     """
@@ -203,7 +200,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     print(f"  n={len(y)}  events={int(y.sum())} ({y.mean()*100:.1f}%)  EPV_MAX={epv_max}")
     print(f"{'='*70}")
 
-    # ── Step 1: Remove leakage columns ───────────────────────
+    # Step 1: Remove leakage columns
     # Also drop both outcome raw columns (the current and the other horizon)
     both_outcomes = [OUTCOME_5YR, OUTCOME_10YR]
     always_drop   = [ID_COL]
@@ -241,7 +238,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     print(f"  Non-numeric / all-NaN:            {len(non_numeric_cols)}")
     print(f"  → {X.shape[1]} numeric columns remain")
 
-    # ── MICE imputation (before feature selection, on remaining cols) ──
+    # MICE imputation (before feature selection, on remaining cols)
     pct_missing = X.isnull().mean()
     high_missing = pct_missing[pct_missing > 0.50].index.tolist()
     X = X.drop(columns=high_missing)
@@ -258,7 +255,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     X = X_imp.copy()
     removal_log = {}
 
-    # ── Step 3a: Dominant binary removal ─────────────────────
+    # Step 3a: Dominant binary removal
     binary_cols = [c for c in X.columns if set(X[c].round(0).unique()).issubset({0.0, 1.0, 0, 1})]
     dominant_binary = []
     for c in binary_cols:
@@ -273,7 +270,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     for c, pct in dominant_binary:
         print(f"  [-] {c[:80]}  ({pct}%)")
 
-    # ── Step 3b: Low-variance removal ────────────────────────
+    # Step 3b: Low-variance removal
     variances = X.var()
     low_var = variances[variances < 0.01].index.tolist()
     for c in low_var:
@@ -284,7 +281,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     for c in low_var:
         print(f"  [-] {c[:80]}  (var={variances[c]:.5f})")
 
-    # ── Step 4: High-correlation removal (r > 0.80) ──────────
+    # Step 4: High-correlation removal (r > 0.80)
     print(f"\n--- STEP 4: High correlation removal (r > 0.80) ---")
     corr_removed = []
     changed = True
@@ -306,7 +303,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     for removed, kept, r in corr_removed:
         print(f"  [-] {removed[:70]}  (r={r} with '{kept[:50]}')")
 
-    # ── Step 5: VIF removal (VIF > 10) ───────────────────────
+    # Step 5: VIF removal (VIF > 10)
     print(f"\n--- STEP 5: High VIF removal (VIF > 10) ---")
     vif_removed = []
     while True:
@@ -328,7 +325,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     print(f"\nFinal VIF values after step 5:")
     print(vif_final.to_string(index=False))
 
-    # ── Step 6: LASSO with EPV cap ────────────────────────────
+    # Step 6: LASSO with EPV cap
     n_events = int(y.sum())
     print(f"\n--- STEP 6: LASSO (hard cap EPV_MAX={epv_max}) ---")
     print(f"Features entering LASSO: {X.shape[1]}")
@@ -387,7 +384,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
     else:
         print(f"{X.shape[1]} ≤ {epv_max}  →  LASSO not needed")
 
-    # ── Manual correction: Age (Now) → Age at biopsy ─────────
+    # Manual correction: Age (Now) → Age at biopsy
     # "Age (Now)" = age at database compilation (~13.5 yrs post-biopsy on average).
     # Not a valid baseline predictor. Replace with "Age at biopsy" — same correction
     # applied in the 1yr and 5yr flare feature selection pipelines.
@@ -399,7 +396,7 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
         removal_log[AGE_NOW_COL] = "Manual correction — not a baseline predictor"
         print(f"\n  Manual correction: '{AGE_NOW_COL}' → '{AGE_BX_COL}'")
 
-    # ── Final summary ─────────────────────────────────────────
+    # Final summary
     print(f"\n{'='*70}")
     print(f"FINAL FEATURES — {outcome_label}  ({X.shape[1]} predictors / {n_events} events)")
     print(f"  EPV = {n_events} / {X.shape[1]} = {n_events / X.shape[1]:.1f}")
@@ -413,17 +410,14 @@ def run_feature_selection(df_cohort, y, outcome_label, epv_max, outcome_raw_col)
 
     return X, removal_log
 
-
-# ============================================================
 # 1. Load raw data
-# ============================================================
+
 print("Loading raw data...")
 df_raw = pd.read_excel(RAW_PATH)
 print(f"Raw data: {df_raw.shape[0]} rows × {df_raw.shape[1]} columns")
 
-# ============================================================
 # 2. Run for 5-year ESRD (EPV_MAX = floor(112/10) = 11)
-# ============================================================
+
 mask5 = df_raw[OUTCOME_5YR].notna() & ~df_raw[OUTCOME_5YR].isin(["X"])
 df5   = df_raw[mask5].copy().reset_index(drop=True)
 y5    = df5[OUTCOME_5YR].isin(ESRD_CODES).astype(int)
@@ -437,9 +431,8 @@ out5 = pd.concat([y5.rename("esrd_5yr"), X5_selected], axis=1)
 out5.to_excel(f"{PROCESSED_DIR}/esrd_5yr_selected.xlsx", index=False)
 print(f"\nSaved: {PROCESSED_DIR}/esrd_5yr_selected.xlsx  ({out5.shape})")
 
-# ============================================================
 # 3. Run for 10-year ESRD (EPV_MAX = floor(175/10) = 17)
-# ============================================================
+
 mask10 = df_raw[OUTCOME_10YR].notna() & ~df_raw[OUTCOME_10YR].isin(["X"])
 df10   = df_raw[mask10].copy().reset_index(drop=True)
 y10    = df10[OUTCOME_10YR].isin(ESRD_CODES).astype(int)
@@ -453,9 +446,8 @@ out10 = pd.concat([y10.rename("esrd_10yr"), X10_selected], axis=1)
 out10.to_excel(f"{PROCESSED_DIR}/esrd_10yr_selected.xlsx", index=False)
 print(f"\nSaved: {PROCESSED_DIR}/esrd_10yr_selected.xlsx  ({out10.shape})")
 
-# ============================================================
 # 4. Side-by-side feature comparison
-# ============================================================
+
 feats5  = set(X5_selected.columns)
 feats10 = set(X10_selected.columns)
 print(f"\n{'='*70}")

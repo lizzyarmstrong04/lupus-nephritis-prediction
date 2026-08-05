@@ -34,7 +34,6 @@ MODEL_COLORS = {
 with open(f"{OUT_DIR}/esrd_best_params.json") as f:
     BEST_PARAMS = json.load(f)
 
-
 def build_models(horizon_key, scale_pos_weight):
     p_rf   = BEST_PARAMS[horizon_key]["Random Forest"]
     p_xgb  = BEST_PARAMS[horizon_key]["XGBoost"]
@@ -73,7 +72,6 @@ def build_models(horizon_key, scale_pos_weight):
                 min_child_samples=p_lgbm["clf__min_child_samples"],
                 class_weight="balanced", verbose=-1, random_state=42))]),
     }
-
 
 def run_shap(data_path, outcome_col, horizon_key, horizon_label):
     df  = pd.read_excel(data_path)
@@ -184,7 +182,6 @@ def run_shap(data_path, outcome_col, horizon_key, horizon_label):
                 bbox_inches="tight")
     plt.close("all")
     print(f"  Saved: {shap_dir}/")
-
 
 # Run for both horizons
 run_shap(f"{PROCESSED_DIR}/esrd_5yr_selected.xlsx",  "esrd_5yr",  "5yr",  "5-Year")

@@ -28,9 +28,8 @@ X = df.drop(columns=[c for c in DROP_META + [OUTCOME_COL] if c in df.columns])
 X = X.select_dtypes(include="number")
 print(f"Features after dropping metadata: {X.shape[1]}")
 
-# ============================================================
 # Missingness analysis
-# ============================================================
+
 missing_pct  = X.isnull().mean() * 100
 print(f"\n--- MISSINGNESS SUMMARY ---")
 print(f"  No missing:      {(missing_pct == 0).sum()} columns")
@@ -49,9 +48,8 @@ if cols_over_50:
     X = X.drop(columns=cols_over_50)
     print(f"\nDropped {len(cols_over_50)} columns >50% missing")
 
-# ============================================================
 # MICE imputation (any column with >0% missing)
-# ============================================================
+
 cols_to_impute = missing_pct[(missing_pct > 0) & (missing_pct <= 50)].index.tolist()
 cols_complete  = missing_pct[missing_pct == 0].index.tolist()
 
@@ -66,9 +64,8 @@ else:
 
 removal_log = {}
 
-# ============================================================
 # Step 3a: Dominant binary removal (>90%)
-# ============================================================
+
 binary_cols     = [c for c in X.columns if X[c].dropna().isin([0, 1]).all()]
 dominant_binary = []
 for c in binary_cols:
@@ -81,9 +78,8 @@ print(f"\n--- STEP 3a: Dominant binary (>90%) — removed {len(dominant_binary)}
 for c, pct in dominant_binary:
     print(f"  [-] {c[:80]}  ({pct}%)")
 
-# ============================================================
 # Step 3b: Low variance (<0.01)
-# ============================================================
+
 variances = X.var()
 low_var   = variances[variances < 0.01].index.tolist()
 for c in low_var:
@@ -93,9 +89,8 @@ print(f"\n--- STEP 3b: Low variance (<0.01) — removed {len(low_var)} ---")
 for c in low_var:
     print(f"  [-] {c[:80]}  (var={variances[c]:.5f})")
 
-# ============================================================
 # Step 4: High correlation (r > 0.8)
-# ============================================================
+
 print(f"\n--- STEP 4: High correlation (r > 0.8) ---")
 corr_removed = []
 changed = True
@@ -116,9 +111,8 @@ print(f"Removed {len(corr_removed)} features  →  {X.shape[1]} remaining")
 for removed, kept, r in corr_removed:
     print(f"  [-] {removed[:70]}  (r={r} with '{kept[:50]}')")
 
-# ============================================================
 # Step 5: High VIF (>10)
-# ============================================================
+
 def calculate_vif(X_df):
     scaler = StandardScaler()
     Xs = pd.DataFrame(scaler.fit_transform(X_df), columns=X_df.columns)
@@ -143,9 +137,8 @@ for col, vif in vif_removed:
 vif_final = calculate_vif(X)
 print(f"\nMax VIF after step 5: {vif_final['VIF'].max():.2f}")
 
-# ============================================================
 # Step 6: LASSO — hard cap EPV_MAX=4
-# ============================================================
+
 print(f"\n--- STEP 6: LASSO (hard cap ≤{EPV_MAX} predictors) ---")
 print(f"  Features entering LASSO: {X.shape[1]}")
 print(f"  ⚠  EPV constraint: {n_events} events → max {EPV_MAX} predictors (EPV-10 rule)")
@@ -189,9 +182,8 @@ print(f"\n  Selected C={chosen_C}  →  {len(final_features)} features retained"
 print(f"\n  LASSO retained features (sorted by |coefficient|):")
 print(coef_df[coef_df["Coefficient"] != 0].to_string(index=False))
 
-# ============================================================
 # Final summary
-# ============================================================
+
 print(f"\n{'='*65}")
 print(f"FINAL SELECTED FEATURES  ({X.shape[1]} predictors / {n_events} events)")
 print(f"EPV = {n_events}/{X.shape[1]} = {n_events/X.shape[1]:.1f}")

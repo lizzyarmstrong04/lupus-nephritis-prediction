@@ -24,9 +24,8 @@ SCALE_POS_WEIGHT = round(190 / 166, 2)
 
 os.makedirs(SHAP_DIR, exist_ok=True)
 
-# ============================================================
 # 1. Load data and best hyperparameters
-# ============================================================
+
 df = pd.read_excel(f"{PROCESSED_DIR}/lupus_5yr_selected_clean.xlsx")
 X  = df.drop(columns=[OUTCOME_COL])
 y  = df[OUTCOME_COL].astype(int)
@@ -47,9 +46,8 @@ print(f"Dataset: {X.shape[0]} rows, {X.shape[1]} predictors")
 print(f"Outcome events: {y.sum()} / {len(y)} ({y.mean()*100:.1f}%)")
 print(f"Features: {short_features}")
 
-# ============================================================
 # 2. Rebuild tuned models
-# ============================================================
+
 def make_rf(p):
     return RandomForestClassifier(
         n_estimators=p.get("clf__n_estimators", 300),
@@ -108,9 +106,8 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 
-# ============================================================
 # 3. Compute SHAP values
-# ============================================================
+
 shap_values_dict = {}
 scaler_fit = StandardScaler().fit(X_named)
 
@@ -143,9 +140,8 @@ for name, pipeline in MODELS.items():
     shap_values_dict[name] = {"shap_vals": shap_vals, "X_tr": X_tr}
     print("done")
 
-# ============================================================
 # 4. Plots per model
-# ============================================================
+
 def get_patients_of_interest(pipeline, X_named):
     probs      = pipeline.predict_proba(X_named)[:, 1]
     idx_high   = int(np.argmax(probs))
@@ -213,9 +209,8 @@ for name, data in shap_values_dict.items():
         plt.close("all")
         print(f"  Saved: {fname}")
 
-# ============================================================
 # 5. Cross-model comparison table
-# ============================================================
+
 print("\n" + "="*80)
 print("MEAN ABSOLUTE SHAP VALUES PER FEATURE PER MODEL (5-year)")
 print("="*80)

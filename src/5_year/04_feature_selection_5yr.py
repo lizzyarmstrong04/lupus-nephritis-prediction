@@ -18,9 +18,8 @@ y        = df[OUTCOME_COL].copy()
 n_events = int(y.sum())
 print(f"Outcome events: {n_events}  →  EPV hard cap: {EPV_MAX} predictors")
 
-# ============================================================
 # 1. Leakage removal
-# ============================================================
+
 always_drop = [ID_COL, OUTCOME_COL]
 
 named_leakage = [
@@ -168,9 +167,8 @@ print(f"  → {X.shape[1]} baseline numeric features to evaluate")
 
 removal_log = {}
 
-# ============================================================
 # 3a. Dominant binary removal (one class > 90%)
-# ============================================================
+
 binary_cols     = [c for c in X.columns if X[c].dropna().isin([0, 1]).all()]
 dominant_binary = []
 for c in binary_cols:
@@ -185,9 +183,8 @@ print(f"Removed {len(dominant_binary)} features  →  {X.shape[1]} remaining")
 for c, pct in dominant_binary:
     print(f"  [-] {c}  ({pct}%)")
 
-# ============================================================
 # 3b. Low variance (< 0.01)
-# ============================================================
+
 variances = X.var()
 low_var   = variances[variances < 0.01].index.tolist()
 for c in low_var:
@@ -198,9 +195,8 @@ print(f"Removed {len(low_var)} features  →  {X.shape[1]} remaining")
 for c in low_var:
     print(f"  [-] {c}  (var={variances[c]:.5f})")
 
-# ============================================================
 # 4. High correlation (> 0.8)
-# ============================================================
+
 print(f"\n--- STEP 4: High correlation removal (r > 0.8) ---")
 corr_removed = []
 changed = True
@@ -222,9 +218,8 @@ print(f"Removed {len(corr_removed)} features  →  {X.shape[1]} remaining")
 for removed, kept, r in corr_removed:
     print(f"  [-] {removed[:80]}  (r={r} with '{kept[:60]}')")
 
-# ============================================================
 # 5. High VIF (> 10)
-# ============================================================
+
 def calculate_vif(X_df):
     scaler = StandardScaler()
     Xs = pd.DataFrame(scaler.fit_transform(X_df), columns=X_df.columns)
@@ -252,9 +247,8 @@ vif_final = calculate_vif(X)
 print(f"\nFinal VIF values after step 5:")
 print(vif_final.to_string(index=False))
 
-# ============================================================
 # 6. LASSO with hard cap at EPV_MAX
-# ============================================================
+
 print(f"\n--- STEP 6: LASSO (hard cap {EPV_MAX} predictors) ---")
 print(f"Features entering LASSO: {X.shape[1]}")
 
@@ -304,9 +298,8 @@ if X.shape[1] > EPV_MAX:
 else:
     print(f"{X.shape[1]} features ≤ {EPV_MAX}  →  LASSO not needed")
 
-# ============================================================
 # 7. Summary
-# ============================================================
+
 print(f"\n{'='*65}")
 print(f"FINAL SELECTED FEATURES  ({X.shape[1]} predictors / {n_events} events)")
 print(f"{'='*65}")

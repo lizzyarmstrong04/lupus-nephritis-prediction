@@ -24,7 +24,7 @@ BASE   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialColleg
 MODELS = f"{BASE}/src/app/models"
 OUT    = f"{BASE}/outputs/figures"
 
-# ── Youden thresholds (same as app) ───────────────────────────────────────
+# Youden thresholds (same as app)
 THRESH = {"1yr": 0.410, "5yr": 0.509, "esrd_5yr": 0.482, "esrd_10yr": 0.470}
 
 def risk_tier(p, key):
@@ -33,33 +33,33 @@ def risk_tier(p, key):
     if p < t:        return "Moderate"
     return                   "High"
 
-# ── Tier colours ──────────────────────────────────────────────────────────
+# Tier colours
 TIER_COLORS = {"Low": "#007F3B", "Moderate": "#ED8B00", "High": "#DA291C"}
 TIER_ORDER  = ["Low", "Moderate", "High"]
 
-# ── Time-to-event from dates ───────────────────────────────────────────────
+# Time-to-event from dates
 def days_between(d1, d2):
     return (pd.to_datetime(d2) - pd.to_datetime(d1)).dt.days / 365.25
 
-# ── Load data ──────────────────────────────────────────────────────────────
+# Load data
 df1 = pd.read_excel(f"{BASE}/Data/Processed/lupus_1yr_imputed.xlsx")
 df5 = pd.read_excel(f"{BASE}/Data/Processed/lupus_5yr_imputed.xlsx")
 
-# ── Feature columns (match what each model was trained on) ────────────────
+# Feature columns (match what each model was trained on)
 feat1 = joblib.load(f"{MODELS}/feature_cols.joblib")["1yr"]
 feat5 = joblib.load(f"{MODELS}/feature_cols.joblib")["5yr"]
 
 lr1 = joblib.load(f"{MODELS}/1yr_lr.joblib")
 lr5 = joblib.load(f"{MODELS}/5yr_lr.joblib")
 
-# ── Compute predicted probabilities ───────────────────────────────────────
+# Compute predicted probabilities
 prob1 = lr1.predict_proba(df1[feat1])[:, 1]
 prob5 = lr5.predict_proba(df5[feat5])[:, 1]
 
 tier1 = [risk_tier(p, "1yr") for p in prob1]
 tier5 = [risk_tier(p, "5yr") for p in prob5]
 
-# ── Build survival datasets ────────────────────────────────────────────────
+# Build survival datasets
 # 1yr cohort — time to flare
 flare_col = [c for c in df1.columns if "***Flare" in c][0]
 last_fu    = "Date last follow-up, note 06/11/2018 taken as last follow-up if not lost to follow-up"
@@ -119,7 +119,7 @@ for t in TIER_ORDER:
     mask = tier_rrt == t
     print(f"  {t}: n={mask.sum()}, events={e_rrt_c[mask].sum()}")
 
-# ── KM plot helper ─────────────────────────────────────────────────────────
+# KM plot helper
 def km_panel(ax, times, events, tiers, title, xlabel, max_t, letter):
     present = [t for t in TIER_ORDER if t in tiers]
     kmfs = {}
@@ -169,7 +169,7 @@ def km_panel(ax, times, events, tiers, title, xlabel, max_t, letter):
             transform=ax.transAxes,
             fontsize=10, fontweight="bold", va="top", ha="left")
 
-# ── Figure ─────────────────────────────────────────────────────────────────
+# Figure
 matplotlib.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],

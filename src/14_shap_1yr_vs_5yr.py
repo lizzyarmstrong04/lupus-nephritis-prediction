@@ -44,9 +44,8 @@ SHORT_NAMES_5YR = {
     "Age at biopsy":                                                                                                                                                 "Age at biopsy",
 }
 
-# ============================================================
 # Load data
-# ============================================================
+
 df1 = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx")
 X1  = df1.drop(columns=["flare_1yr"])
 y1  = df1["flare_1yr"].astype(int)
@@ -64,9 +63,8 @@ with open(f"{OUTPUTS_DIR}/5yr_best_params.json") as f:
 
 SCALE_POS_WEIGHT = round(190 / 166, 2)
 
-# ============================================================
 # Build models
-# ============================================================
+
 def models_1yr():
     return {
         "Logistic Regression": Pipeline([("scaler", StandardScaler()),
@@ -121,9 +119,8 @@ def models_5yr(p):
                 verbose=-1, random_state=42, class_weight="balanced"))]),
     }
 
-# ============================================================
 # Compute mean |SHAP| for all models, both horizons
-# ============================================================
+
 def get_mean_abs_shap(models_dict, X, y, features):
     results = {}
     for name, pipeline in models_dict.items():
@@ -157,9 +154,8 @@ shap_1yr = get_mean_abs_shap(models_1yr(), X1, y1, feat1)
 print("Computing 5-year SHAP values...")
 shap_5yr = get_mean_abs_shap(models_5yr(bp5), X5, y5, feat5)
 
-# ============================================================
 # Plot: 2x2 panels, one per model
-# ============================================================
+
 MODEL_NAMES = ["Logistic Regression", "Random Forest", "XGBoost", "LightGBM"]
 COLOR_1YR = "#4C72B0"
 COLOR_5YR = "#DD8452"

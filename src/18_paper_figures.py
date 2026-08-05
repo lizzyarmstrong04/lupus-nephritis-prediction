@@ -31,14 +31,14 @@ import xgboost as xgb
 import lightgbm as lgbm
 import re
 
-# ── Paths ──────────────────────────────────────────────────────────────────
+# Paths
 BASE     = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project"
 PROC     = f"{BASE}/Data/Processed"
 OUT      = f"{BASE}/outputs"
 FIG_DIR  = f"{OUT}/figures"
 os.makedirs(FIG_DIR, exist_ok=True)
 
-# ── Validated categorical palette (Wong 2011) ──────────────────────────────
+# Validated categorical palette (Wong 2011)
 PALETTE = {
     "Logistic\nRegression": "#0072B2",
     "Random\nForest":       "#009E73",
@@ -54,7 +54,7 @@ LSTYLES = {
 MODEL_LABELS = list(PALETTE.keys())
 SHORT_LABELS = ["LR", "RF", "XGBoost", "LightGBM"]
 
-# ── Typography ─────────────────────────────────────────────────────────────
+# Typography
 matplotlib.rcParams.update({
     "font.family":           "serif",
     "font.serif":            ["Times New Roman", "Times", "DejaVu Serif"],
@@ -78,7 +78,7 @@ matplotlib.rcParams.update({
     "savefig.bbox":          "tight",
 })
 
-# ── Feature name cleanup map ───────────────────────────────────────────────
+# Feature name cleanup map
 FEAT_LABELS = {
     "% chronic gloms(%of total)":                                                          "Chronic glomeruli (%)",
     "%gloms with necrosis":                                                                "Glomerular necrosis (%)",
@@ -123,11 +123,11 @@ def short_feat(name):
     clean = re.sub(r'\s+', ' ', clean).strip()
     return clean if len(clean) <= 28 else clean[:27].rstrip() + "…"
 
-# ── Safe column names (LightGBM) ───────────────────────────────────────────
+# Safe column names (LightGBM)
 def safe_cols(df):
     return df.rename(columns={c: re.sub(r"[^A-Za-z0-9_]", "_", c) for c in df.columns})
 
-# ── Model factories ────────────────────────────────────────────────────────
+# Model factories
 def make_models(params_rf, params_xgb, params_lgbm):
     rf_kw  = {k.replace("clf__", ""): v for k, v in params_rf.items()}
     xgb_kw = {k.replace("clf__", ""): v for k, v in params_xgb.items()}
@@ -142,7 +142,7 @@ def make_models(params_rf, params_xgb, params_lgbm):
         "LightGBM":  lgbm.LGBMClassifier(verbose=-1, random_state=42, **lgb_kw),
     }
 
-# ── OOF predictions ────────────────────────────────────────────────────────
+# OOF predictions
 def oof_probs(X, y, models, n_splits=10, n_repeats=5):
     """Returns dict model_name -> (y_true_concat, y_prob_concat)."""
     cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=42)
@@ -157,7 +157,7 @@ def oof_probs(X, y, models, n_splits=10, n_repeats=5):
             out[name][1].extend(probs.tolist())
     return {k: (np.array(v[0]), np.array(v[1])) for k, v in out.items()}
 
-# ── Load everything ────────────────────────────────────────────────────────
+# Load everything
 p1  = json.load(open(f"{OUT}/1yr_best_params.json"))
 p5  = json.load(open(f"{OUT}/5yr_best_params.json"))
 pe  = json.load(open(f"{OUT}/esrd/esrd_best_params.json"))
@@ -202,7 +202,7 @@ COHORTS = [
      "cv": (10, 5)},
 ]
 
-# ── Bootstrap for serial (quick — n=70) ───────────────────────────────────
+# Bootstrap for serial (quick — n=70)
 def serial_bootstrap(X, y, models, n_boot=500):
     X_s = safe_cols(X)
     rng = np.random.default_rng(42)
@@ -233,7 +233,7 @@ b_ser = serial_bootstrap(
     COHORTS[2]["models"])
 print(b_ser.to_string(index=False))
 
-# ── Run OOF for all 5 cohorts ──────────────────────────────────────────────
+# Run OOF for all 5 cohorts
 print("\nRunning OOF cross-validation for calibration curves...")
 all_oof = []
 for i, c in enumerate(COHORTS):
@@ -243,9 +243,8 @@ for i, c in enumerate(COHORTS):
     all_oof.append(res)
 print("OOF done.")
 
-# ══════════════════════════════════════════════════════════════════════
 # FIGURE 2 — Calibration curves
-# ══════════════════════════════════════════════════════════════════════
+
 def make_3x2_fig():
     fig = plt.figure(figsize=(7.2, 5.1))
     gs  = gridspec.GridSpec(2, 6, figure=fig,
@@ -304,9 +303,7 @@ fig2.savefig(f"{FIG_DIR}/calibration_panel.png", dpi=300)
 plt.close(fig2)
 print(f"Saved calibration_panel.pdf / .png")
 
-# ══════════════════════════════════════════════════════════════════════
 # FIGURE 3 — Apparent vs Bias-Corrected AUROC (dumbbell)
-# ══════════════════════════════════════════════════════════════════════
 
 def prep_boot(df, app_col, bc_col):
     """Standardise bootstrap table to [Model, Apparent, BC]."""
@@ -391,9 +388,7 @@ fig3.savefig(f"{FIG_DIR}/auroc_apparent_vs_bc.png", dpi=300)
 plt.close(fig3)
 print(f"Saved auroc_apparent_vs_bc.pdf / .png")
 
-# ══════════════════════════════════════════════════════════════════════
 # FIGURE 4 — SHAP importance (2×2, 4 cohorts, no serial)
-# ══════════════════════════════════════════════════════════════════════
 
 s1   = pd.read_excel(f"{OUT}/shap_importance_table.xlsx")
 s5   = pd.read_excel(f"{OUT}/shap_importance_table_5yr.xlsx")

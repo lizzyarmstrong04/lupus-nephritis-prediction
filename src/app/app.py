@@ -15,14 +15,12 @@ import matplotlib.pyplot as plt
 APP_DIR   = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(APP_DIR, "models")
 
-
 YOUDEN_THRESH = {
     "1yr":       0.410,
     "5yr":       0.509,
     "esrd_5yr":  0.482,
     "esrd_10yr": 0.470,
 }
-
 
 st.set_page_config(
     page_title="Risk Calculator",
@@ -177,7 +175,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Load models ────────────────────────────────────────────────
+# Load models
 @st.cache_resource
 def load_all():
     models, feat_cols = {}, {}
@@ -194,7 +192,7 @@ except FileNotFoundError:
     st.error("Model files not found. Run `python src/app/00_save_models.py` first.")
     st.stop()
 
-# ── Lookup tables ──────────────────────────────────────────────
+# Lookup tables
 LN_CLASS_OPT = {
     "Class I":1,"Class II":2,"Class III":3,"Class IV":4,"Class V":5,
     "Class III+V":6,"Class IV+V":7,"Class II+V":8,"Class VI":9,"Other":10,
@@ -213,7 +211,7 @@ SUBEP_OPT = {
     "Large or conspicuous deposits":2,"No glomeruli on EM":3,
 }
 
-# ── Clean feature labels for contribution chart ────────────────
+# Clean feature labels for contribution chart
 FEAT_LABELS = {
     "% chronic gloms(%of total)":                                  "Chronic glomeruli (%)",
     "%gloms with necrosis":                                        "Glomerular necrosis (%)",
@@ -246,7 +244,7 @@ FEAT_LABELS = {
 def _clean(name):
     return FEAT_LABELS.get(name, name[:30])
 
-# ── Per-patient feature contributions (LR SHAP) ───────────────
+# Per-patient feature contributions (LR SHAP)
 def feature_contributions(analysis, df_row):
     """
     For LR pipeline (StandardScaler → LogisticRegression):
@@ -270,7 +268,7 @@ def feature_contributions(analysis, df_row):
     df_c = df_c.reindex(df_c["contribution"].abs().sort_values(ascending=True).index)
     return df_c
 
-# ── Risk gauge HTML ────────────────────────────────────────────
+# Risk gauge HTML
 def risk_gauge_html(p, analysis):
     t      = YOUDEN_THRESH[analysis]
     lo_pct = t * 0.60 * 100
@@ -307,7 +305,7 @@ def risk_gauge_html(p, analysis):
   {action}
 </div>"""
 
-# ── Contribution bar chart ─────────────────────────────────────
+# Contribution bar chart
 def show_contributions(analysis, df_row):
     df_c   = feature_contributions(analysis, df_row)
     n      = len(df_c)
@@ -349,7 +347,7 @@ def show_contributions(analysis, df_row):
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
-# ── Core helpers ───────────────────────────────────────────────
+# Core helpers
 def risk_tier(p, key):
     t = YOUDEN_THRESH[key]
     if p < t * 0.60:  return "Low risk",      "result-low"
@@ -362,7 +360,6 @@ def predict_best(analysis, row_dict):
               for clf in ["lr", "rf", "xgb", "lgbm"]]
     p = float(np.mean(probs))
     return p, None, df_row
-
 
 def show_result(p, _clf_key, df_row, analysis):
     tier, css = risk_tier(p, analysis)
@@ -386,9 +383,8 @@ def show_result(p, _clf_key, df_row, analysis):
         unsafe_allow_html=True,
     )
 
-# ══════════════════════════════════════════════════════════════
 # Page header
-# ══════════════════════════════════════════════════════════════
+
 st.markdown("""
 <div class="nhs-header">
   <p class="nhs-header-title">Lupus Nephritis Risk Calculator</p>
@@ -401,9 +397,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "  Kidney failure (5-Year)  ", "  Kidney failure (10-Year)  ",
 ])
 
-# ══════════════════════════════════════════════════════════════
 # TAB 1 — 1-Year Flare
-# ══════════════════════════════════════════════════════════════
+
 with tab1:
     st.markdown(
         '<p class="nhs-intro">Estimates the likelihood of lupus nephritis flare '
@@ -455,9 +450,8 @@ with tab1:
         else:
             st.markdown('<p class="nhs-placeholder">Complete the fields on the left and press <strong>Calculate</strong> to see the risk estimate.</p>', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
 # TAB 2 — 5-Year Flare
-# ══════════════════════════════════════════════════════════════
+
 with tab2:
     st.markdown(
         '<p class="nhs-intro">Estimates the likelihood of lupus nephritis flare '
@@ -509,9 +503,8 @@ with tab2:
         else:
             st.markdown('<p class="nhs-placeholder">Complete the fields on the left and press <strong>Calculate</strong> to see the risk estimate.</p>', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
 # TAB 3 — ESRD 5-Year
-# ══════════════════════════════════════════════════════════════
+
 with tab3:
     st.markdown(
         '<p class="nhs-intro">Estimates the likelihood of kidney failure '
@@ -551,9 +544,8 @@ with tab3:
         else:
             st.markdown('<p class="nhs-placeholder">Complete the fields on the left and press <strong>Calculate</strong> to see the risk estimate.</p>', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
 # TAB 4 — ESRD 10-Year
-# ══════════════════════════════════════════════════════════════
+
 with tab4:
     st.markdown(
         '<p class="nhs-intro">Estimates the likelihood of kidney failure '
@@ -625,7 +617,7 @@ with tab4:
         else:
             st.markdown('<p class="nhs-placeholder">Complete the fields on the left and press <strong>Calculate</strong> to see the risk estimate.</p>', unsafe_allow_html=True)
 
-# ── Footer ─────────────────────────────────────────────────────
+# Footer
 st.markdown("""
 <hr style="border:none;border-top:1px solid #d8dde0;margin-top:40px;">
 <p style="font-size:0.78rem;color:#4c6272;line-height:1.6;">

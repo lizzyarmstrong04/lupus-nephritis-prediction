@@ -78,7 +78,6 @@ COHORTS = [
     ("D", "ESRD 10-Year",  f"{BASE}/outputs/esrd/esrd_shap_table_10yr.xlsx",      SHORT_NAMES_ESRD_10YR),
 ]
 
-
 def resolve_short_name(raw, short_names):
     if raw in short_names:
         return short_names[raw]
@@ -88,7 +87,6 @@ def resolve_short_name(raw, short_names):
             return short
     return raw
 
-
 def mean_rank_table(path, short_names):
     df = pd.read_excel(path)
     df["Feature"] = df["Feature"].apply(lambda f: resolve_short_name(f, short_names))
@@ -97,7 +95,6 @@ def mean_rank_table(path, short_names):
     return df[["Feature", "Mean rank across models"]].sort_values(
         "Mean rank across models", ascending=False
     )
-
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 axes = axes.flatten()

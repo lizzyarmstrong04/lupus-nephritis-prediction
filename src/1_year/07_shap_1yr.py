@@ -18,9 +18,8 @@ PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-Imperia
 SHAP_DIR      = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs/figures/shap"
 OUTCOME_COL   = "flare_1yr"
 
-# ============================================================
 # 1. Load data and rebuild tuned models
-# ============================================================
+
 df = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx")
 X  = df.drop(columns=[OUTCOME_COL])
 y  = df[OUTCOME_COL].astype(int)
@@ -74,9 +73,8 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 
-# ============================================================
 # 2. Fit all models and compute SHAP values
-# ============================================================
+
 shap_values_dict = {}
 scaler_fit       = StandardScaler().fit(X_named)
 X_scaled         = pd.DataFrame(scaler_fit.transform(X_named), columns=feature_names)
@@ -118,9 +116,8 @@ for name, pipeline in MODELS.items():
     shap_values_dict[name] = {"explainer": explainer, "shap_vals": shap_vals, "X_tr": X_tr}
     print("done")
 
-# ============================================================
 # 3. Identify 3 patients of interest per model
-# ============================================================
+
 def get_patients_of_interest(pipeline, X_named):
     probs = pipeline.predict_proba(X_named)[:, 1]
     idx_high   = int(np.argmax(probs))
@@ -132,9 +129,8 @@ def get_patients_of_interest(pipeline, X_named):
         "boundary":      (idx_border, probs[idx_border]),
     }
 
-# ============================================================
 # 4. Generate plots per model
-# ============================================================
+
 mean_shap_table = {}
 
 for name, data in shap_values_dict.items():
@@ -197,9 +193,8 @@ for name, data in shap_values_dict.items():
         plt.close("all")
         print(f"  Saved: {fname}")
 
-# ============================================================
 # 5. Cross-model mean |SHAP| comparison table
-# ============================================================
+
 print("\n" + "="*80)
 print("MEAN ABSOLUTE SHAP VALUES PER FEATURE PER MODEL")
 print("="*80)
@@ -217,9 +212,8 @@ shap_df.to_excel(
 )
 print("\nSaved: shap_importance_table.xlsx")
 
-# ============================================================
 # 6. Combined bar chart — all models side by side
-# ============================================================
+
 fig, ax = plt.subplots(figsize=(11, 6))
 n_feat  = len(feature_names)
 n_models = len(MODELS)

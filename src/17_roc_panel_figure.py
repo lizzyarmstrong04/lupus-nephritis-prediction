@@ -26,7 +26,7 @@ PROCESSED = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCol
 ESRD_DIR  = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUT_DIR   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs/figures"
 
-# ── Validated palette (Wong 2011, colorblind-safe) ─────────────────────────
+# Validated palette (Wong 2011, colorblind-safe)
 COLORS = {
     "Logistic\nRegression": "#0072B2",   # blue
     "Random\nForest":       "#009E73",   # teal
@@ -41,7 +41,7 @@ STYLES = {
 }
 LW = 1.6   # line width
 
-# ── Hyperparameters (tuned) ────────────────────────────────────────────────
+# Hyperparameters (tuned)
 def make_models(params_rf, params_xgb, params_lgbm):
     rf_kw  = {k.replace("clf__",""): v for k, v in params_rf.items()}
     xgb_kw = {k.replace("clf__",""): v for k, v in params_xgb.items()}
@@ -61,7 +61,7 @@ def make_models(params_rf, params_xgb, params_lgbm):
             verbose=-1, random_state=42, **lgb_kw),
     }
 
-# ── Cross-validated OOF ROC ────────────────────────────────────────────────
+# Cross-validated OOF ROC
 def safe_colnames(df):
     """Rename columns to safe identifiers (LightGBM rejects special chars)."""
     import re
@@ -98,7 +98,7 @@ def oof_roc(X, y, models, n_splits=10, n_repeats=5, rng=42):
         print(f"AUC={mean_auc:.3f}")
     return results
 
-# ── Load data ──────────────────────────────────────────────────────────────
+# Load data
 import json
 
 p1  = json.load(open(f"/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs/1yr_best_params.json"))
@@ -161,7 +161,7 @@ cohorts = [
     },
 ]
 
-# ── Run CV for all cohorts ─────────────────────────────────────────────────
+# Run CV for all cohorts
 all_results = []
 for c in cohorts:
     print(f"\n{'─'*55}")
@@ -170,7 +170,7 @@ for c in cohorts:
     res = oof_roc(c["X"], c["y"], c["models"], n_splits=ns, n_repeats=nr)
     all_results.append(res)
 
-# ── Figure ─────────────────────────────────────────────────────────────────
+# Figure
 matplotlib.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],

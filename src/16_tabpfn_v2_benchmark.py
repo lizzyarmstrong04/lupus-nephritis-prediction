@@ -114,7 +114,7 @@ def tabpfn_row(res):
         "CV Calibration Slope":  round(res["mean_slope"],  3),
     }])
 
-# ── 1-year ────────────────────────────────────────────────────
+# 1-year
 df1 = pd.read_excel(f"{PROCESSED_DIR}/lupus_1yr_selected_clean.xlsx")
 X1  = df1.drop(columns=["flare_1yr"])
 y1  = df1["flare_1yr"].astype(int)
@@ -123,7 +123,7 @@ res1_cv   = run_cv(X1, y1, "1-Year Flare — CV")
 print("\nRunning bootstrap for 1-year...")
 res1_boot = harrell_bootstrap(X1, y1)
 
-# ── 5-year ────────────────────────────────────────────────────
+# 5-year
 df5 = pd.read_excel(f"{PROCESSED_DIR}/lupus_5yr_selected_clean.xlsx")
 X5  = df5.drop(columns=["flare_5yr"])
 y5  = df5["flare_5yr"].astype(int)
@@ -132,7 +132,7 @@ res5_cv   = run_cv(X5, y5, "5-Year Flare — CV")
 print("\nRunning bootstrap for 5-year...")
 res5_boot = harrell_bootstrap(X5, y5)
 
-# ── Comparison tables ──────────────────────────────────────────
+# Comparison tables
 existing_1yr = pd.read_excel(f"{OUTPUTS_DIR}/1yr_model_results.xlsx",  sheet_name="CV Results")
 existing_5yr = pd.read_excel(f"{OUTPUTS_DIR}/5yr_model_results.xlsx",  sheet_name="CV Results")
 tabpfn_v1    = pd.read_excel(f"{OUTPUTS_DIR}/tabpfn_comparison.xlsx",  sheet_name="1yr")
@@ -159,7 +159,7 @@ print("COMPARISON — 5-YEAR FLARE")
 print("="*75)
 print(compare_5.to_string(index=False))
 
-# ── Save ───────────────────────────────────────────────────────
+# Save
 with pd.ExcelWriter(f"{OUTPUTS_DIR}/tabpfn_v2_comparison.xlsx", engine="openpyxl") as w:
     compare_1.to_excel(w, sheet_name="1yr", index=False)
     compare_5.to_excel(w, sheet_name="5yr", index=False)

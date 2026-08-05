@@ -23,7 +23,7 @@ BASE  = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollege
 PROC  = f"{BASE}/Data/Processed"
 OUT   = f"{BASE}/outputs"
 
-# ── DeLong test implementation ─────────────────────────────────────────────
+# DeLong test implementation
 def _auc_placement(y_true, y_score):
     """Compute structural components V10, V01 for DeLong variance."""
     pos = y_score[y_true == 1]
@@ -59,12 +59,12 @@ def delong_test(y_true, prob_a, prob_b):
     p = 2 * stats.norm.sf(abs(z))
     return auc_a, auc_b, z, p
 
-# ── Safe column names (LightGBM restriction) ───────────────────────────────
+# Safe column names (LightGBM restriction)
 def safe_cols(df):
     return df.rename(columns={c: re.sub(r"[^A-Za-z0-9_]", "_", c)
                                for c in df.columns})
 
-# ── Build models from saved hyperparameters ────────────────────────────────
+# Build models from saved hyperparameters
 def build_models(params_rf, params_xgb, params_lgb):
     rf_kw  = {k.replace("clf__", ""): v for k, v in params_rf.items()}
     xgb_kw = {k.replace("clf__", ""): v for k, v in params_xgb.items()}
@@ -82,7 +82,7 @@ def build_models(params_rf, params_xgb, params_lgb):
         "LightGBM": lgbm.LGBMClassifier(verbose=-1, random_state=42, **lgb_kw),
     }
 
-# ── Collect OOF predictions via CV ─────────────────────────────────────────
+# Collect OOF predictions via CV
 def get_oof_probs(X, y, models, n_splits=10, n_repeats=5):
     import sklearn.base as skb
     CV = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
@@ -103,7 +103,7 @@ def get_oof_probs(X, y, models, n_splits=10, n_repeats=5):
         oof[name] /= counts[name]
     return oof
 
-# ── Run pairwise DeLong for one cohort ────────────────────────────────────
+# Run pairwise DeLong for one cohort
 def pairwise_delong(label, X, y, models, n_splits=10, n_repeats=5):
     print(f"\n{'='*60}")
     print(f"  {label}  (n={len(y)}, events={int(y.sum())})")
@@ -143,7 +143,7 @@ def pairwise_delong(label, X, y, models, n_splits=10, n_repeats=5):
 
     return pd.DataFrame(rows), pd.DataFrame(auroc_rows)
 
-# ── Load data & params ─────────────────────────────────────────────────────
+# Load data & params
 p1  = json.load(open(f"{OUT}/1yr_best_params.json"))
 p5  = json.load(open(f"{OUT}/5yr_best_params.json"))
 pe  = json.load(open(f"{OUT}/esrd/esrd_best_params.json"))
@@ -172,7 +172,7 @@ COHORTS = [
      10, 5),
 ]
 
-# ── Run all cohorts & save ─────────────────────────────────────────────────
+# Run all cohorts & save
 out_path = f"{OUT}/delong_pairwise.xlsx"
 with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
     for label, X, y, models, ns, nr in COHORTS:

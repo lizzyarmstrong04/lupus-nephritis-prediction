@@ -19,7 +19,7 @@ from sklearn.neural_network import MLPClassifier
 
 BASE = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project"
 
-# ── Load & merge ESRD datasets (same 796 patients) ────────────────────────
+# Load & merge ESRD datasets (same 796 patients)
 df5  = pd.read_excel(f"{BASE}/Data/Processed/esrd_5yr_selected.xlsx")
 df10 = pd.read_excel(f"{BASE}/Data/Processed/esrd_10yr_selected.xlsx")
 
@@ -37,7 +37,7 @@ print(f"Merged feature matrix: {X_all.shape}  ({X_all.shape[1]} features)")
 print(f"Events — ESRD 5yr: {y5.sum()} ({y5.mean()*100:.1f}%)  "
       f"ESRD 10yr: {y10.sum()} ({y10.mean()*100:.1f}%)")
 
-# ── Multi-task network ────────────────────────────────────────────────────
+# Multi-task network
 class MultiTaskNet(nn.Module):
     def __init__(self, n_features, hidden=(128, 64, 32), dropout=0.3):
         super().__init__()
@@ -56,7 +56,7 @@ class MultiTaskNet(nn.Module):
         return torch.sigmoid(self.head5(z)).squeeze(1), \
                torch.sigmoid(self.head10(z)).squeeze(1)
 
-# ── Single-task network (same architecture, one head) ─────────────────────
+# Single-task network (same architecture, one head)
 class SingleTaskNet(nn.Module):
     def __init__(self, n_features, hidden=(128, 64, 32), dropout=0.3):
         super().__init__()
@@ -72,7 +72,7 @@ class SingleTaskNet(nn.Module):
     def forward(self, x):
         return torch.sigmoid(self.head(self.trunk(x))).squeeze(1)
 
-# ── Training helpers ──────────────────────────────────────────────────────
+# Training helpers
 def to_tensor(arr):
     return torch.tensor(arr, dtype=torch.float32)
 
@@ -113,7 +113,7 @@ def predict(model, X_te):
         return out[0].numpy(), out[1].numpy()
     return out.numpy()
 
-# ── CV evaluation ─────────────────────────────────────────────────────────
+# CV evaluation
 def run_cv(X, y5, y10, n_splits=10, n_repeats=5):
     CV = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                   random_state=42)
@@ -129,17 +129,17 @@ def run_cv(X, y5, y10, n_splits=10, n_repeats=5):
         y5_tr  = y5[tr].astype(np.float32)
         y10_tr = y10[tr].astype(np.float32)
 
-        # ── Multi-task ──────────────────────────────────────────────────
+        # Multi-task
         mt = train_multitask(X_tr, y5_tr, y10_tr, n_features)
         p5_mt, p10_mt = predict(mt, X_te)
         mt_aucs5.append(roc_auc_score(y5[te], p5_mt))
         mt_aucs10.append(roc_auc_score(y10[te], p10_mt))
 
-        # ── Single-task 5yr ─────────────────────────────────────────────
+        # Single-task 5yr
         st5 = train_singletask(X_tr, y5_tr, n_features)
         st_aucs5.append(roc_auc_score(y5[te], predict(st5, X_te)))
 
-        # ── Single-task 10yr ────────────────────────────────────────────
+        # Single-task 10yr
         st10 = train_singletask(X_tr, y10_tr, n_features)
         st_aucs10.append(roc_auc_score(y10[te], predict(st10, X_te)))
 
@@ -160,7 +160,7 @@ def run_cv(X, y5, y10, n_splits=10, n_repeats=5):
         "Single-task — ESRD 10yr":ci(st_aucs10),
     }
 
-# ── Run ───────────────────────────────────────────────────────────────────
+# Run
 print("\nRunning 5×10-fold CV (50 folds) — this takes ~10 min...\n")
 results = run_cv(X_all.values, y5.values, y10.values)
 

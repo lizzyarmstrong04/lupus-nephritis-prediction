@@ -88,9 +88,8 @@ def add_table(doc, headers, rows, col_widths=None):
     doc.add_paragraph()
     return t
 
-# ══════════════════════════════════════════════════════════════════════════════
 # TITLE PAGE
-# ══════════════════════════════════════════════════════════════════════════════
+
 title = doc.add_paragraph()
 title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 run = title.add_run("Lupus Nephritis Prediction Pipeline")
@@ -114,9 +113,8 @@ date_p.add_run(f"Generated: {datetime.date.today().strftime('%d %B %Y')}").font.
 
 doc.add_page_break()
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 1. PROJECT OVERVIEW
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "1. Project Overview", 1)
 body(doc,
     "This document describes five parallel machine learning prediction pipelines developed "
@@ -152,9 +150,8 @@ add_table(doc,
     col_widths=[4, 1.5, 2, 2.5, 3.5, 2.5]
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 2. DATA PREPARATION
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "2. Data Preparation and Cohort Filtering", 1)
 
 heading(doc, "2.1 Source Data", 2)
@@ -264,9 +261,8 @@ body(doc,
     "restricts to index biopsies (biopsy number = 1) for cohort characterisation."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 3. MISSINGNESS ANALYSIS AND MICE IMPUTATION
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "3. Missingness Analysis and MICE Imputation", 1)
 
 heading(doc, "3.1 Approach", 2)
@@ -325,9 +321,8 @@ body(doc,
     "source Excel. After imputation, zero missing values remained."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 4. FEATURE SELECTION
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "4. Feature Selection", 1)
 
 heading(doc, "4.1 Pipeline Overview", 2)
@@ -574,9 +569,8 @@ body(doc,
     "that retain discriminatory value over a longer horizon."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 5. CLASS IMBALANCE HANDLING
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "5. Class Imbalance Handling", 1)
 body(doc,
     "Class imbalance was addressed in all four classifiers across all analyses. "
@@ -601,9 +595,8 @@ body(doc,
     "where class weighting was most important."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 6. MODEL DEVELOPMENT
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "6. Model Development and Evaluation", 1)
 
 heading(doc, "6.1 Algorithms", 2)
@@ -712,9 +705,8 @@ body(doc,
     "reflecting the greater model complexity with 17 predictors and 175 events."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 7. RESULTS
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "7. Results", 1)
 
 heading(doc, "7.1 1-Year Cohort Results", 2)
@@ -833,9 +825,8 @@ body(doc,
     "pairwise differences after Holm correction (see Section 8.3)."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 8. STATISTICAL COMPARISON — DELONG'S TEST
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "8. Statistical Comparison — DeLong's Test", 1)
 
 heading(doc, "8.1 Method", 2)
@@ -920,9 +911,8 @@ body(doc,
     "no classifier type holds a significant advantage in either ESRD horizon."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 9. SHAP EXPLAINABILITY
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "9. SHAP Explainability Analysis", 1)
 
 heading(doc, "9.1 Method", 2)
@@ -1040,9 +1030,8 @@ body(doc,
     "outputs/esrd/figures/esrd_shap_5yr_vs_10yr.png."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 10. TABPFN BENCHMARK
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "10. TabPFN Benchmark", 1)
 
 heading(doc, "10.1 Method  (src/15_tabpfn_benchmark.py)", 2)
@@ -1107,9 +1096,8 @@ body(doc,
     "not justify its additional computational overhead for this dataset."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 11. FILE AND SCRIPT REFERENCE
-# ══════════════════════════════════════════════════════════════════════════════
+
 heading(doc, "11. File and Script Reference", 1)
 
 heading(doc, "11.1 Data Files", 2)
