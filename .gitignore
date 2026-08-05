@@ -1,0 +1,40 @@
+# ── Patient / clinical data (NEVER commit) ────────────────────────────────
+Data/
+*.xlsx
+*.csv
+*.xls
+
+# ── Derived outputs with patient-level data ────────────────────────────────
+outputs/*.xlsx
+outputs/*.csv
+outputs/esrd/*.xlsx
+outputs/esrd/*.csv
+outputs/tabpfn*/
+outputs/delong_pairwise.xlsx
+outputs/multitask_esrd_results.xlsx
+outputs/tabpfn_v3_checkpoint.pkl
+
+# ── Keep publication figures ───────────────────────────────────────────────
+!outputs/figures/
+
+# ── Python environment ────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ── Secrets / API keys ────────────────────────────────────────────────────
+.env
+*.env
+secrets.py
+
+# ── OS / editor ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ── Large model checkpoints ───────────────────────────────────────────────
+*.pkl
+nohup.out
