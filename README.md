@@ -20,21 +20,16 @@ Logistic Regression, Random Forest, XGBoost, LightGBM — with hyperparameter tu
 
 ```
 src/
-├── 1_year/          # 1-year flare: data prep → imputation → feature selection → modelling → SHAP
-├── 5_year/          # 5-year flare + serial biopsy pipeline
-├── esrd/            # ESRD 5-year and 10-year pipeline + DeLong + SHAP
-├── app/             # Streamlit risk calculator + saved models
-├── 00_eda_raw.py
-├── 13_delong_test.py
-├── 14_shap_1yr_vs_5yr.py
-├── 15_shap_mean_rank_panel.py
-├── 16b_tabpfn_v2_all_cohorts.py   # TabPFN v3 benchmark (all cohorts)
-├── 17_roc_panel_figure.py          # Publication ROC panel
-├── 18_paper_figures.py             # Calibration, dumbbell, SHAP figures
-├── 19_delong_pairwise.py           # Pairwise DeLong tests
-├── 20_multitask_esrd.py            # Multi-task neural network (ESRD)
-└── 21_km_analysis.py               # Kaplan-Meier analysis
-outputs/figures/                    # Publication-quality figures (PDF + PNG)
+├── 1_year/                     # 1-year flare: data prep → imputation → feature selection → modelling → SHAP
+├── 5_year/                     # 5-year flare + serial biopsy pipeline
+├── esrd/                       # ESRD 5-year and 10-year pipeline: feature selection → modelling → SHAP → DeLong
+├── app/                        # Streamlit risk calculator + saved models
+├── 13_delong_test.py           # Pairwise DeLong test (1yr / 5yr / esrd cohorts)
+├── 16_ensemble.py              # Ensemble model (1yr + 5yr flare)
+├── 16_tabpfn_v3_benchmark.py   # TabPFN v3 benchmark (all cohorts)
+├── 19_delong_pairwise.py       # Pairwise DeLong tests, pooled
+└── 21_km_analysis.py           # Kaplan-Meier analysis
+outputs/figures/                # Publication-quality figures (PDF + PNG)
 ```
 
 ## Evaluation
@@ -62,7 +57,7 @@ Set your API token before running:
 
 ```bash
 export TABPFN_TOKEN="your_token_here"
-python src/16b_tabpfn_v2_all_cohorts.py
+python src/16_tabpfn_v3_benchmark.py
 ```
 
 ## Notes

@@ -38,3 +38,17 @@ Thumbs.db
 # ── Large model checkpoints ───────────────────────────────────────────────
 *.pkl
 nohup.out
+
+# ── Exploratory / superseded / figure-only scripts (kept locally, not on GitHub) ──
+src/00_eda_raw.py
+src/14_shap_1yr_vs_5yr.py
+src/15_shap_mean_rank_panel.py
+src/15_tabpfn_benchmark.py
+src/16_tabpfn_v2_benchmark.py
+src/17_roc_panel_figure.py
+src/18_paper_figures.py
+src/20_multitask_esrd.py
+src/Serial/
+src/esrd/04_esrd_shap_comparison.py
+src/esrd/05_esrd_vs_flare_shap.py
+src/esrd/06_esrd_delong_figure.py
