@@ -12,13 +12,6 @@ predictions, then plots two separate figures, each a 2x3 grid (5 cohort panels
   - Calibration curves (OOF probability decile vs. observed event rate,
     45-degree reference line)
 
-TabPFN v3 is shown as a reported reference (AUROC / Brier text) rather than a
-drawn curve: its raw per-fold predictions were not retained in
-outputs/tabpfn_v3_checkpoint.pkl (only aggregate metrics survived), so no
-curve can be plotted without re-querying the paid hosted API. Not benchmarked
-on the serial biopsy cohort (outputs/tabpfn_v3_all_cohorts.xlsx has no sheet
-for it), so it is omitted from that panel only.
-
 Uses the project's standard model colour scheme (src/1_year/06_modelling_1yr.py,
 src/5_year/05_modelling_5yr.py, src/5_year/11_serial_modelling_5yr.py):
   Logistic Regression #1f77b4, Random Forest #ff7f0e, XGBoost #2ca02c,
@@ -58,16 +51,6 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 MODEL_ORDER = list(MODEL_COLORS)
-
-# TabPFN v3: reported reference values only (see module docstring for why no
-# curve is drawn). None = not benchmarked on that cohort.
-TABPFN_V3 = {
-    "1-Year Flare":  {"auroc": 0.684, "brier": 0.166},
-    "5-Year Flare":  {"auroc": 0.671, "brier": 0.230},
-    "Serial Biopsy": None,
-    "ESRD 5-Year":   {"auroc": 0.796, "brier": 0.100},
-    "ESRD 10-Year":  {"auroc": 0.817, "brier": 0.122},
-}
 
 
 def make_rf(p):
@@ -253,10 +236,6 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
         ax.plot(r["fpr"], r["tpr"], color=MODEL_COLORS[name], lw=1.8)
         annot_lines.append(f"{name}: {r['cv_auroc']:.3f}")
 
-    tabpfn = TABPFN_V3[c["label"]]
-    if tabpfn is not None:
-        annot_lines.append(f"TabPFN v3: {tabpfn['auroc']:.3f}†")
-
     ax.text(0.03, 0.97, "\n".join(annot_lines), transform=ax.transAxes,
             fontsize=7, va="top", ha="left",
             bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="0.7", alpha=0.85))
@@ -277,8 +256,6 @@ legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5) for nam
 legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=11, frameon=False)
 
 fig_roc.suptitle("ROC Curves — All Cohorts\n(5×k-fold CV, tuned models)", fontsize=14, fontweight="bold")
-fig_roc.text(0.5, -0.02, "†TabPFN v3: reported CV AUROC only — no curve (raw fold predictions not retained; "
-             "not benchmarked on Serial Biopsy)", ha="center", fontsize=7, style="italic", color="0.4")
 fig_roc.savefig(f"{FIG_DIR}/roc_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_roc)
 print(f"\nSaved: {FIG_DIR}/roc_all_cohorts.png")
@@ -300,12 +277,6 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
             frac_pos, mean_pred = calibration_curve(c["y"], oof, n_bins=max(3, c["n_bins"] // 2), strategy="quantile")
         ax.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=1.8, markersize=4)
 
-    tabpfn = TABPFN_V3[c["label"]]
-    if tabpfn is not None:
-        ax.text(0.03, 0.97, f"TabPFN v3 Brier: {tabpfn['brier']:.3f}†", transform=ax.transAxes,
-                fontsize=7, va="top", ha="left",
-                bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="0.7", alpha=0.85))
-
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
     ax.set_title(c["label"], fontsize=11, fontweight="bold")
     ax.set_xlabel("Mean Predicted Probability", fontsize=9)
@@ -322,8 +293,6 @@ legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5, marker=
 legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=11, frameon=False)
 
 fig_cal.suptitle("Calibration Curves — All Cohorts\n(OOF, 5×k-fold CV, tuned models)", fontsize=14, fontweight="bold")
-fig_cal.text(0.5, -0.02, "†TabPFN v3: reported CV Brier score only — no curve (raw fold predictions not "
-             "retained; not benchmarked on Serial Biopsy)", ha="center", fontsize=7, style="italic", color="0.4")
 fig_cal.savefig(f"{FIG_DIR}/calibration_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_cal)
 print(f"Saved: {FIG_DIR}/calibration_all_cohorts.png")
