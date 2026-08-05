@@ -349,5 +349,39 @@ add_table(doc, ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"], [
 body(doc, "TabPFN v3 tied Random Forest for the highest AUROC (0.817) and again produced the best-calibrated probabilities (Brier 0.122).")
 body(doc, "Across all four cohorts, TabPFN v3's main advantage is consistently calibration (Brier score), not discrimination (AUROC) — it matches but does not exceed the best-tuned model's AUROC in every case.")
 
+# 7. SAMPLE SIZE JUSTIFICATION
+heading(doc, "7. Sample Size Justification (pmsampsize)", 1)
+body(doc,
+    "Formal minimum sample size was calculated per Riley et al. 2020 (BMJ 368:m441) for each "
+    "cohort, using the final predictor count, observed event prevalence, and the cohort's own "
+    "optimism-adjusted (bias-corrected) Logistic Regression AUROC as the anticipated C-statistic "
+    "(LR is the paper's designated primary model). Required n = max of three criteria: (1) "
+    "predictor-effect shrinkage <=10%, (2) <=0.05 absolute difference between apparent and "
+    "adjusted Nagelkerke R2, (3) intercept estimated to within a 0.05 margin of error "
+    "(src/22_pmsampsize.py)."
+)
+add_table(doc,
+    ["Cohort", "p", "C-stat (LR, BC)", "n required", "n actual", "EPV actual", "Adequate?"],
+    [
+        ["1-Year flare",   "9",  "0.709", "795", "430", "11.00", "No"],
+        ["5-Year flare",   "10", "0.670", "976", "356", "16.60", "No"],
+        ["Serial biopsy",  "2",  "0.660", "384", "70",  "17.00", "No"],
+        ["ESRD 5-Year",    "5",  "0.797", "294", "796", "22.40", "Yes"],
+        ["ESRD 10-Year",   "17", "0.817", "620", "796", "10.29", "Yes"],
+    ],
+    col_widths=[4, 1.5, 3, 2.5, 2.5, 2.5, 2.5]
+)
+body(doc,
+    "EPV-10 and Riley's formal criteria disagree for the three flare cohorts: all three are "
+    "underpowered by pmsampsize despite meeting or exceeding EPV-10 (1-year EPV=11.00, 5-year "
+    "EPV=16.60, serial EPV=17.00), because their lower discrimination (C-statistic 0.660-0.709) "
+    "requires substantially more events to control overfitting and estimate the intercept "
+    "precisely. Both ESRD cohorts are formally adequate — ESRD 10-year passes despite an EPV of "
+    "only 10.29, since its higher discrimination (C=0.817) needs proportionally fewer events. "
+    "This indicates the true sample-size shortfall in the flare cohorts is real and larger than "
+    "the EPV-10 heuristic alone suggests, while the ESRD analyses are adequately powered by both "
+    "criteria."
+)
+
 doc.save(OUTPUT)
 print(f"Saved: {OUTPUT}")
