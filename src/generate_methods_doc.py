@@ -129,7 +129,7 @@ body(doc,
     "and evaluation framework — the same 6-step feature selection pipeline (leakage removal, "
     "dominant-binary, low-variance, high-correlation, VIF, LASSO with EPV-10 cap), MICE "
     "imputation (done as a separate pre-step before modelling), and Harrell bootstrap are applied. "
-    "An additional TabPFN in-context learning benchmark was run on the flare datasets (Section 10)."
+    "An additional TabPFN v3 in-context learning benchmark was run on all four datasets (Section 10)."
 )
 body(doc,
     "The primary outcome in flare analyses is binary (flare/no flare). The ESRD outcome is a "
@@ -655,13 +655,39 @@ add_table(doc,
     col_widths=[4, 7.5, 5]
 )
 
-body(doc, "Best hyperparameters — ESRD cohorts (5-year and 10-year use the same search grid):")
+body(doc,
+    "ESRD 5-year and 10-year were tuned over the same RandomizedSearchCV grid "
+    "(shown below), but the search was run independently for each horizon and "
+    "selected different best values (src/esrd/00_esrd_feature_selection.py)."
+)
 add_table(doc,
     ["Model", "Parameter", "Search space"],
     [
         ["Random Forest", "n_estimators / max_depth / min_samples_leaf / max_features", "200/300/500 / 3/5/7/None / 5/10/20 / sqrt/0.5/0.7"],
         ["XGBoost",       "n_estimators / max_depth / lr / subsample / colsample / min_child_w / reg_α / reg_λ", "100/200 / 2/3 / 0.01/0.05 / 0.5/0.6 / 0.5/0.6 / 5/10/15 / 0.1/1/2 / 1/5/10"],
         ["LightGBM",      "n_estimators / max_depth / lr / subsample / num_leaves / min_child_samples", "100/200/300 / 2/3/4 / 0.01/0.05/0.1 / 0.7/0.8/1.0 / 15/31/63 / 10/20/30"],
+    ],
+    col_widths=[4, 7.5, 5]
+)
+
+body(doc, "Best hyperparameters — ESRD 5-Year cohort:")
+add_table(doc,
+    ["Model", "Parameter", "Value"],
+    [
+        ["Random Forest", "n_estimators / max_depth / min_samples_leaf / max_features", "200 / 3 / 20 / 0.5"],
+        ["XGBoost",       "n_estimators / max_depth / lr / subsample / colsample / reg_α / reg_λ / min_child_w", "200 / 2 / 0.01 / 0.6 / 0.5 / 0.1 / 10.0 / 5"],
+        ["LightGBM",      "n_estimators / max_depth / lr / subsample / num_leaves / min_child_samples", "300 / 2 / 0.01 / 0.7 / 15 / 30"],
+    ],
+    col_widths=[4, 7.5, 5]
+)
+
+body(doc, "Best hyperparameters — ESRD 10-Year cohort:")
+add_table(doc,
+    ["Model", "Parameter", "Value"],
+    [
+        ["Random Forest", "n_estimators / max_depth / min_samples_leaf / max_features", "300 / 7 / 5 / sqrt"],
+        ["XGBoost",       "n_estimators / max_depth / lr / subsample / colsample / reg_α / reg_λ / min_child_w", "200 / 2 / 0.05 / 0.5 / 0.6 / 2.0 / 5.0 / 10"],
+        ["LightGBM",      "n_estimators / max_depth / lr / subsample / num_leaves / min_child_samples", "300 / 3 / 0.05 / 0.7 / 15 / 10"],
     ],
     col_widths=[4, 7.5, 5]
 )
@@ -1032,26 +1058,25 @@ body(doc,
 
 # 10. TABPFN BENCHMARK
 
-heading(doc, "10. TabPFN Benchmark", 1)
+heading(doc, "10. TabPFN v3 Benchmark", 1)
 
-heading(doc, "10.1 Method  (src/15_tabpfn_benchmark.py)", 2)
+heading(doc, "10.1 Method  (src/16_tabpfn_v3_benchmark.py)", 2)
 body(doc,
     "TabPFN (Hollmann et al., 2022) is a prior-data fitted network — a transformer pre-trained "
-    "on millions of synthetic tabular datasets, performing in-context learning at inference time "
-    "without any fitting to the target dataset during forward pass. Version 1 (tabpfn==0.1.11) "
-    "was used; this version requires no account or licence, supports datasets with ≤1,000 training "
-    "samples and ≤100 features, and runs on CPU. Configuration: N_ensemble_configurations=32, "
-    "device='cpu', seed=42."
+    "on synthetic tabular datasets, performing in-context learning at inference time without "
+    "dataset-specific fitting. TabPFN v3 (Prior Labs) is accessed via the hosted client API "
+    "(tabpfn_client.TabPFNClassifier, package tabpfn_client==0.3.1), authenticated with an API "
+    "token (TABPFN_TOKEN environment variable) rather than run locally."
 )
 body(doc,
-    "TabPFN was benchmarked on the 1-year and 5-year flare datasets using the same 5×10-fold "
-    "repeated stratified CV protocol as the four main classifiers. Harrell optimism-corrected "
-    "bootstrap was not performed for TabPFN: preliminary runs showed the bootstrap would require "
-    "several hours of CPU time (each bootstrap iteration requires a new forward pass with the "
-    "full synthetic-ensemble configuration), making it computationally infeasible. CV results "
-    "only are reported. Note: the training set in each fold does not exceed 1,000 samples "
-    "(1-year cohort: ~387 train, ~43 test; 5-year cohort: ~320 train, ~36 test), satisfying "
-    "the TabPFN v1 constraint."
+    "TabPFN v3 was benchmarked on all four datasets — 1-year flare, 5-year flare, ESRD 5-year, "
+    "ESRD 10-year — using the same 5×10-fold repeated stratified CV protocol as the four main "
+    "classifiers, so results are directly comparable. Harrell optimism-corrected bootstrap was "
+    "not performed for TabPFN v3: each bootstrap iteration requires a new API call, making 1,000 "
+    "iterations computationally and financially impractical against a hosted service. CV results "
+    "only are reported. To tolerate the hosted API's occasional dropped connections, the script "
+    "retries each fold up to 5 times (15s backoff) and checkpoints completed folds to "
+    "outputs/tabpfn_v3_checkpoint.pkl so an interrupted run can resume without repeating work."
 )
 
 heading(doc, "10.2 Results", 2)
@@ -1063,16 +1088,15 @@ add_table(doc,
         ["Random Forest",       "0.690", "0.549–0.834", "0.211", "0.849"],
         ["XGBoost",             "0.674", "0.544–0.837", "0.224", "0.835"],
         ["LightGBM",            "0.659", "0.532–0.818", "0.224", "0.686"],
-        ["TabPFN",              "0.705", "0.562–0.838", "0.165", "0.731"],
+        ["TabPFN v3",           "0.684", "0.567–0.834", "0.166", "0.747"],
     ],
     col_widths=[4.5, 3, 3.5, 2.5, 3]
 )
 body(doc,
-    "TabPFN matched Logistic Regression on AUROC (0.705 vs 0.708, within the confidence interval "
-    "overlap). Its most notable advantage was Brier score: 0.165 vs 0.220 for LR and 0.211–0.224 "
-    "for tree models. A lower Brier score indicates better-calibrated probability estimates "
-    "overall. This suggests TabPFN's pre-trained prior produces more reliable probability "
-    "outputs even without dataset-specific training."
+    "TabPFN v3 discrimination (AUROC 0.684) fell between the tree models and Logistic Regression, "
+    "well within all confidence interval overlaps. Its notable advantage was Brier score: 0.166 "
+    "vs 0.220 for LR and 0.211–0.224 for the tree models — a substantially better-calibrated "
+    "probability estimate despite no dataset-specific training."
 )
 
 body(doc, "5-Year Flare — comparison with existing models (5×10-fold CV):")
@@ -1083,17 +1107,54 @@ add_table(doc,
         ["Random Forest",       "0.679", "0.505–0.809", "0.227", "0.827"],
         ["XGBoost",             "0.673", "0.479–0.811", "0.239", "0.705"],
         ["LightGBM",            "0.678", "0.518–0.792", "0.229", "0.878"],
-        ["TabPFN",              "0.672", "0.491–0.816", "0.230", "0.691"],
+        ["TabPFN v3",           "0.671", "0.508–0.815", "0.230", "0.734"],
     ],
     col_widths=[4.5, 3, 3.5, 2.5, 3]
 )
 body(doc,
-    "At 5 years, TabPFN performed at parity with the existing models on all three metrics. "
-    "AUROC (0.672) was within 0.007 of all comparators. Brier score (0.230) was in the middle "
-    "of the range. The Brier advantage seen at 1 year did not replicate at 5 years, possibly "
-    "because the higher event rate (46.6%) reduces the impact of probability calibration on "
-    "the Brier score. Overall, TabPFN does not improve on the existing model suite and does "
-    "not justify its additional computational overhead for this dataset."
+    "At 5 years, TabPFN v3 performed at parity with the existing models on all three metrics "
+    "(AUROC 0.671, within 0.008 of all comparators; Brier 0.230, mid-range). The clear Brier "
+    "advantage seen at 1 year did not replicate here, plausibly because the higher event rate "
+    "(46.6% vs 23.0%) leaves less room for calibration alone to move the Brier score."
+)
+
+body(doc, "ESRD 5-Year — comparison with existing models (5×10-fold CV):")
+add_table(doc,
+    ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"],
+    [
+        ["Logistic Regression", "0.797", "0.669–0.904", "0.178", "0.873"],
+        ["Random Forest",       "0.787", "0.623–0.898", "0.164", "1.013"],
+        ["XGBoost",             "0.792", "0.631–0.901", "0.178", "1.288"],
+        ["LightGBM",            "0.797", "0.653–0.923", "0.171", "1.053"],
+        ["TabPFN v3",           "0.796", "0.621–0.898", "0.100", "0.891"],
+    ],
+    col_widths=[4.5, 3, 3.5, 2.5, 3]
+)
+body(doc,
+    "TabPFN v3 matched the best-performing models on discrimination (AUROC 0.796, effectively "
+    "tied with LR and LightGBM at 0.797) while achieving a markedly lower Brier score (0.100 vs "
+    "0.164–0.178 for the other four models) — the largest calibration advantage seen across any "
+    "cohort in this benchmark."
+)
+
+body(doc, "ESRD 10-Year — comparison with existing models (5×10-fold CV):")
+add_table(doc,
+    ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"],
+    [
+        ["Logistic Regression", "0.811", "0.656–0.903", "0.167", "0.874"],
+        ["Random Forest",       "0.817", "0.710–0.931", "0.139", "1.152"],
+        ["XGBoost",             "0.821", "0.696–0.933", "0.155", "0.963"],
+        ["LightGBM",            "0.809", "0.701–0.926", "0.140", "0.714"],
+        ["TabPFN v3",           "0.817", "0.710–0.926", "0.122", "0.904"],
+    ],
+    col_widths=[4.5, 3, 3.5, 2.5, 3]
+)
+body(doc,
+    "TabPFN v3 tied Random Forest for the highest AUROC (0.817) and again produced the best-"
+    "calibrated probabilities of all five models (Brier 0.122 vs 0.139–0.167). Across both ESRD "
+    "horizons, TabPFN v3's discrimination is competitive with the tuned tree ensembles while "
+    "consistently improving calibration — its main advantage throughout this benchmark is Brier "
+    "score, not AUROC."
 )
 
 # 11. FILE AND SCRIPT REFERENCE
@@ -1122,8 +1183,9 @@ add_table(doc,
         ["shap_importance_table.xlsx",         "outputs/",        "Mean |SHAP| per feature per model — 1-year"],
         ["shap_importance_table_5yr.xlsx",     "outputs/",        "Mean |SHAP| per feature per model — 5-year"],
         ["delong_test_results.xlsx",           "outputs/",        "Pairwise DeLong's test, all flare cohorts (4 sheets)"],
-        ["tabpfn_comparison.xlsx",             "outputs/",        "TabPFN vs existing models — 1yr and 5yr (2 sheets)"],
+        ["tabpfn_v3_all_cohorts.xlsx",         "outputs/",        "TabPFN v3 vs existing models — all 4 cohorts (4 sheets)"],
         ["esrd_model_results.xlsx",            "outputs/esrd/",   "ESRD CV results — 5yr and 10yr (2 sheets)"],
+        ["esrd_best_params.json",              "outputs/esrd/",   "ESRD best hyperparameters — 5yr and 10yr (JSON)"],
         ["esrd_shap_table_5yr.xlsx",           "outputs/esrd/",   "Mean |SHAP| per feature — ESRD 5-year"],
         ["esrd_shap_table_10yr.xlsx",          "outputs/esrd/",   "Mean |SHAP| per feature — ESRD 10-year"],
         ["esrd_delong_results.xlsx",           "outputs/esrd/",   "Pairwise DeLong's test — ESRD 5yr and 10yr"],
@@ -1135,7 +1197,6 @@ heading(doc, "11.2 Scripts", 2)
 add_table(doc,
     ["Script", "Purpose"],
     [
-        ["src/00_eda_raw.py",                          "EDA on full raw dataset"],
         ["src/1_year/01_data_prep_1yr.py",             "Filter raw data → 1-year cohort"],
         ["src/1_year/03_missingness_1yr.py",           "Missingness summary"],
         ["src/1_year/04_mice_imputation_1yr.py",       "MICE imputation (1-year)"],
@@ -1152,15 +1213,15 @@ add_table(doc,
         ["src/5_year/10_serial_feature_selection_5yr.py", "Feature selection — serial biopsy (EPV_MAX=4)"],
         ["src/5_year/11_serial_modelling_5yr.py",     "Tuning, 5×5-fold CV, Harrell bootstrap — serial biopsy"],
         ["src/13_delong_test.py",                     "Pairwise DeLong's test, all flare cohorts"],
-        ["src/14_shap_1yr_vs_5yr.py",                 "Comparison figure: 1-year vs 5-year SHAP feature importance"],
-        ["src/15_tabpfn_benchmark.py",                "TabPFN benchmark (5×10-fold CV, 1yr and 5yr datasets)"],
+        ["src/16_ensemble.py",                        "Ensemble model — 1-year and 5-year flare"],
+        ["src/16_tabpfn_v3_benchmark.py",             "TabPFN v3 benchmark (5×10-fold CV, all 4 cohorts)"],
+        ["src/19_delong_pairwise.py",                 "Pairwise DeLong's test, pooled across cohorts"],
+        ["src/21_km_analysis.py",                     "Kaplan-Meier survival analysis"],
+        ["src/esrd/00_esrd_feature_selection.py",     "MICE imputation + feature selection pipeline — ESRD"],
         ["src/esrd/01_data_prep_esrd.py",             "ESRD cohort characterisation (index biopsies, exclusion breakdown)"],
         ["src/esrd/01_esrd_modelling.py",             "ESRD tuning, 5×10-fold CV, ROC/calibration plots (5yr and 10yr)"],
         ["src/esrd/02_esrd_shap.py",                  "SHAP analysis — ESRD 5-year and 10-year"],
         ["src/esrd/03_esrd_delong.py",                "Pairwise DeLong's test — ESRD"],
-        ["src/esrd/04_esrd_shap_comparison.py",       "Comparison figure: ESRD 5yr vs 10yr SHAP"],
-        ["src/esrd/05_esrd_vs_flare_shap.py",         "Comparison figure: ESRD vs flare SHAP importance"],
-        ["src/esrd/06_esrd_delong_figure.py",         "Grouped bar chart with significance brackets — ESRD DeLong results"],
         ["src/generate_methods_doc.py",               "Generate this document (python-docx)"],
     ],
     col_widths=[7, 9]
@@ -1175,7 +1236,7 @@ add_table(doc,
         ["scikit-learn", "1.6.1",  "Preprocessing, MICE, LR, RF, CV, metrics"],
         ["xgboost",      "2.1.4",  "Gradient boosting (XGBoost)"],
         ["lightgbm",     "4.6.0",  "Gradient boosting (LightGBM)"],
-        ["tabpfn",       "0.1.11", "TabPFN in-context learning benchmark (v1, no account)"],
+        ["tabpfn_client", "0.3.1", "TabPFN v3 in-context learning benchmark (hosted API, Prior Labs)"],
         ["shap",         "0.49.1", "SHAP explainability"],
         ["statsmodels",  "—",      "VIF calculation"],
         ["scipy",        "—",      "DeLong's test (normal distribution)"],

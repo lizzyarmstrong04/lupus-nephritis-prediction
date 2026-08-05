@@ -1,10 +1,10 @@
 """
-TabPFN v2 (client API) benchmark — all four cohorts:
+TabPFN v3 (client API) benchmark — all four cohorts:
   1-year flare, 5-year flare, ESRD 5-year, ESRD 10-year
 
 Protocol: 5×10-fold RepeatedStratifiedKFold CV (50 folds per cohort)
 Metrics:  AUROC, Brier score, calibration slope
-Saves:    outputs/tabpfn_v2_all_cohorts.xlsx  (one sheet per cohort)
+Saves:    outputs/tabpfn_v3_all_cohorts.xlsx  (one sheet per cohort)
           + incremental .pkl checkpoint after every fold so a dropped
           connection doesn't lose completed work
 
@@ -63,7 +63,7 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
         return checkpoint[label]["result"]
 
     print(f"\n{'='*60}")
-    print(f"TabPFN v2 — {label}")
+    print(f"TabPFN v3 — {label}")
     print(f"  n={len(y)}, events={int(y.sum())} ({y.mean()*100:.1f}%)")
 
     # Resume partially-completed folds if checkpoint exists
