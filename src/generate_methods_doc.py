@@ -1247,5 +1247,97 @@ add_table(doc,
     col_widths=[4, 3, 9]
 )
 
+# 12. LIMITATIONS
+
+heading(doc, "12. Limitations", 1)
+
+heading(doc, "12.1 Sample Size (src/22_pmsampsize.py)", 2)
+body(doc,
+    "Feature selection throughout this pipeline was constrained by the Events Per Variable "
+    "(EPV-10) heuristic (Section 4.2): the maximum number of predictors was capped at "
+    "floor(events / 10) for each cohort. EPV-10 is a widely used rule of thumb, but it is a "
+    "coarse heuristic that ignores the anticipated discriminative ability of the model. To "
+    "obtain a more rigorous, model-specific estimate of whether each cohort's sample size was "
+    "adequate, the closed-form minimum sample size criteria of Riley et al. 2020 (BMJ 368:m441) "
+    "were applied post hoc to each cohort, using its final predictor count, observed event "
+    "prevalence, and its own optimism-adjusted (bias-corrected) Logistic Regression AUROC as the "
+    "anticipated C-statistic (LR is the paper's designated primary model, and Riley et al. "
+    "recommend an optimism-adjusted C-statistic for this purpose)."
+)
+add_table(doc,
+    ["Cohort", "p", "C-stat (LR, BC)", "n required", "n actual", "EPV actual", "Adequate?"],
+    [
+        ["1-Year flare",   "9",  "0.709", "795", "430", "11.00", "No"],
+        ["5-Year flare",   "10", "0.670", "976", "356", "16.60", "No"],
+        ["Serial biopsy",  "2",  "0.660", "384", "70",  "17.00", "No"],
+        ["ESRD 5-Year",    "5",  "0.797", "294", "796", "22.40", "Yes"],
+        ["ESRD 10-Year",   "17", "0.817", "620", "796", "10.29", "Yes"],
+    ],
+    col_widths=[4, 1.5, 3, 2.5, 2.5, 2.5, 2.5]
+)
+body(doc,
+    "EPV-10 and Riley's formal criteria disagree for the three flare cohorts: all three are "
+    "underpowered by pmsampsize despite meeting or exceeding EPV-10 (1-year EPV=11.00, 5-year "
+    "EPV=16.60, serial EPV=17.00), because their lower discrimination (C-statistic 0.660–0.709) "
+    "requires substantially more events to control overfitting and estimate the intercept "
+    "precisely. Both ESRD cohorts are formally adequate by these criteria — notably, ESRD "
+    "10-year passes despite an EPV of only 10.29, since its higher discrimination (C=0.817) "
+    "needs proportionally fewer events. This indicates the true sample-size shortfall in the "
+    "flare cohorts, and particularly the serial biopsy sub-analysis, is real and larger than the "
+    "EPV-10 heuristic alone suggests; results from these three cohorts should be interpreted as "
+    "hypothesis-generating rather than confirmatory. The ESRD 5-year and 10-year analyses are "
+    "adequately powered by both the EPV-10 heuristic and the more rigorous Riley et al. criteria."
+)
+
+heading(doc, "12.2 EPV Cap Sensitivity (src/23_epv5_sensitivity.py)", 2)
+body(doc,
+    "As a direct test of whether the EPV-10 feature cap was materially constraining model "
+    "performance, the automated LASSO-capped feature selection (Section 4.1, steps 3a-6) was "
+    "rerun with the cap relaxed to an EPV-5 rule for the two most constrained cohorts (1-year "
+    "flare and serial biopsy), and the same tuning + CV protocol was applied to the resulting "
+    "feature sets. This reruns only the automated selection — it does not reproduce the manual "
+    "post-selection clinical corrections described in Sections 4.3/4.5, so the feature lists and "
+    "resulting AUROCs below differ from the published final models; the purpose here is only to "
+    "isolate the marginal effect of the cap itself."
+)
+add_table(doc,
+    ["Cohort", "Cap", "N features", "Model", "CV AUROC", "CV Brier", "CV Cal Slope"],
+    [
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "Logistic Regression", "0.702", "0.219", "0.640"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "Random Forest",       "0.691", "0.187", "0.719"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "XGBoost",             "0.684", "0.236", "0.506"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "LightGBM",            "0.664", "0.219", "0.753"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "Logistic Regression", "0.681", "0.225", "0.535"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "Random Forest",       "0.731", "0.175", "0.855"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "XGBoost",             "0.720", "0.223", "0.886"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "LightGBM",            "0.715", "0.186", "0.722"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "Logistic Regression", "0.676", "0.235", "0.570"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "Random Forest",       "0.629", "0.240", "0.381"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "XGBoost",             "0.601", "0.248", "0.080"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "LightGBM",            "0.625", "0.240", "0.431"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "Logistic Regression", "0.676", "0.235", "0.570"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "Random Forest",       "0.629", "0.240", "0.381"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "XGBoost",             "0.601", "0.248", "0.080"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "LightGBM",            "0.625", "0.240", "0.431"],
+    ],
+    col_widths=[3, 3.5, 2, 3.5, 2, 2, 2.5]
+)
+body(doc,
+    "1-Year flare: relaxing the cap materially changed results. LASSO retained 19 features "
+    "instead of 12, and all three tree models improved substantially — Random Forest AUROC "
+    "0.691→0.731, XGBoost 0.684→0.720, LightGBM 0.664→0.715 — with calibration slopes moving "
+    "much closer to the ideal of 1.0 (e.g. XGBoost 0.506→0.886). Logistic Regression AUROC fell "
+    "slightly (0.702→0.681). This indicates the EPV-10 cap was genuinely constraining tree-model "
+    "performance in this cohort, consistent with the pmsampsize finding (Section 12.1) that the "
+    "1-year cohort is formally underpowered."
+)
+body(doc,
+    "Serial biopsy: no difference whatsoever — LASSO's discrete regularisation path selected "
+    "exactly the same 2 features (% chronic gloms, time between biopsies) under both caps, "
+    "because (as already noted in Section 4.5) the C-search jumps directly from 12 features to "
+    "2 with no intermediate value, so neither cap was actually binding. The EPV-5 relaxation "
+    "could not have changed this result regardless of cohort size."
+)
+
 doc.save(OUTPUT)
 print(f"Saved: {OUTPUT}")

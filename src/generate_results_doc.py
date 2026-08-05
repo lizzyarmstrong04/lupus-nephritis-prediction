@@ -383,5 +383,50 @@ body(doc,
     "criteria."
 )
 
+# 8. EPV CAP SENSITIVITY
+heading(doc, "8. EPV Cap Sensitivity", 1)
+body(doc,
+    "Direct test of whether the EPV-10 feature cap materially constrained performance: reran "
+    "automated LASSO-capped feature selection with the cap relaxed to EPV-5 for the two most "
+    "constrained cohorts, then applied the same tuning + CV protocol (src/23_epv5_sensitivity.py). "
+    "Reruns the automated selection only — does not reproduce the manual post-selection clinical "
+    "corrections in the published pipeline, so these AUROCs differ from the main results above; "
+    "purpose is to isolate the effect of the cap alone."
+)
+add_table(doc,
+    ["Cohort", "Cap", "N features", "Model", "CV AUROC", "CV Brier", "CV Cal Slope"],
+    [
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "Logistic Regression", "0.702", "0.219", "0.640"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "Random Forest",       "0.691", "0.187", "0.719"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "XGBoost",             "0.684", "0.236", "0.506"],
+        ["1-Year flare", "EPV-10 (cap=12)", "12", "LightGBM",            "0.664", "0.219", "0.753"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "Logistic Regression", "0.681", "0.225", "0.535"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "Random Forest",       "0.731", "0.175", "0.855"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "XGBoost",             "0.720", "0.223", "0.886"],
+        ["1-Year flare", "EPV-5 (cap=19)",  "19", "LightGBM",            "0.715", "0.186", "0.722"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "Logistic Regression", "0.676", "0.235", "0.570"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "Random Forest",       "0.629", "0.240", "0.381"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "XGBoost",             "0.601", "0.248", "0.080"],
+        ["Serial biopsy", "EPV-10 (cap=4)", "2",  "LightGBM",            "0.625", "0.240", "0.431"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "Logistic Regression", "0.676", "0.235", "0.570"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "Random Forest",       "0.629", "0.240", "0.381"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "XGBoost",             "0.601", "0.248", "0.080"],
+        ["Serial biopsy", "EPV-5 (cap=7)",  "2",  "LightGBM",            "0.625", "0.240", "0.431"],
+    ],
+    col_widths=[3, 3.5, 2, 3.5, 2, 2, 2.5]
+)
+body(doc,
+    "1-Year flare: materially different. Relaxing the cap (12→19 features) improved all three "
+    "tree models substantially (RF AUROC 0.691→0.731, XGBoost 0.684→0.720, LightGBM "
+    "0.664→0.715) with calibration slopes moving much closer to 1.0 (XGBoost 0.506→0.886). LR "
+    "AUROC fell slightly (0.702→0.681). The EPV-10 cap was genuinely constraining tree-model "
+    "performance here."
+)
+body(doc,
+    "Serial biopsy: zero difference. LASSO's discrete regularisation path selected the identical "
+    "2 features under both caps (the C-search jumps directly from 12 to 2 features with no "
+    "intermediate value) — neither cap was actually binding."
+)
+
 doc.save(OUTPUT)
 print(f"Saved: {OUTPUT}")
