@@ -43,6 +43,8 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 MODEL_ORDER = list(MODEL_COLORS)
+MODEL_ABBR = {"Logistic Regression": "LR", "Random Forest": "RF", "XGBoost": "XGB", "LightGBM": "LGBM"}
+PANEL_LETTERS = ["A", "B", "C", "D", "E"]
 
 
 def lighten(hex_color, amount=0.55):
@@ -97,19 +99,27 @@ bar_w = 0.35
 for i, c in enumerate(cohorts):
     row, col = panel_position(i)
     ax = axes[row, col]
+    ax.set_axisbelow(True)
+    ax.grid(axis="y", which="major", color="0.88", linewidth=0.7, zorder=0)
+
     for j, name in enumerate(MODEL_ORDER):
         apparent, bc = c["data"][name]
         base = MODEL_COLORS[name]
-        ax.bar(x[j] - bar_w / 2, apparent, width=bar_w, color=lighten(base), edgecolor="black", linewidth=0.6)
-        ax.bar(x[j] + bar_w / 2, bc, width=bar_w, color=base, edgecolor="black", linewidth=0.6)
+        ax.bar(x[j] - bar_w / 2, apparent, width=bar_w, color=lighten(base),
+               edgecolor="0.5", linewidth=0.5, zorder=3)
+        ax.bar(x[j] + bar_w / 2, bc, width=bar_w, color=base,
+               edgecolor="0.5", linewidth=0.5, zorder=3)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(MODEL_ORDER, rotation=30, ha="right", fontsize=8)
+    ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=9)
     ax.set_title(c["label"], fontsize=11, fontweight="bold")
     ax.set_ylim(0.4, 1.0)
-    ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5)
+    ax.set_yticks(np.arange(0.4, 1.01, 0.1))
+    ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5, zorder=2)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=8)
+    ax.text(0.03, 0.97, PANEL_LETTERS[i], transform=ax.transAxes, fontsize=15,
+            fontweight="bold", va="top", ha="left", zorder=5)
     if col == 0:
         ax.set_ylabel("AUROC", fontsize=9)
     else:
@@ -126,6 +136,8 @@ legend_ax.legend(handles=legend_handles, loc="center", fontsize=11, frameon=Fals
 
 fig.suptitle("Apparent vs. Bias-Corrected AUROC — All Cohorts\n(Harrell optimism-corrected bootstrap, 1,000 iterations)",
              fontsize=14, fontweight="bold")
+fig.text(0.5, -0.02, "LR = Logistic Regression; RF = Random Forest; XGB = XGBoost; LGBM = LightGBM",
+         ha="center", fontsize=8, style="italic", color="0.3")
 
 fig.savefig(f"{FIG_DIR}/optimism_barchart.png", dpi=300, bbox_inches="tight")
 plt.close(fig)
