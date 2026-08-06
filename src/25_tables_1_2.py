@@ -113,25 +113,59 @@ def set_run_font(run, size=10.5, bold=False, italic=False):
         rFonts.set(qn(attr), FONT)
 
 
+CELL_SPACE_AFTER = Pt(3)  # a touch of breathing room within each (now single-line) row
+
+
 def set_cell_lines(cell, lines, align=WD_ALIGN_PARAGRAPH.CENTER):
     """lines: list of (text, size, bold, italic) tuples, one per paragraph line."""
     cell.text = ""
     for i, (text, size, bold, italic) in enumerate(lines):
         p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
         p.alignment = align
-        p.paragraph_format.space_after = Pt(0)
+        p.paragraph_format.space_after = CELL_SPACE_AFTER
         p.paragraph_format.space_before = Pt(0)
         run = p.add_run(text)
         set_run_font(run, size=size, bold=bold, italic=italic)
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
 
-def build_three_line_table(doc, title_text):
+def set_cell_run_line(cell, runs, align=WD_ALIGN_PARAGRAPH.CENTER):
+    """runs: list of (text, size, bold, italic) tuples, all on ONE line (one
+    paragraph, multiple runs) - lets part of a single line be bold/smaller
+    than the rest, e.g. '0.708' bold + ' (0.55–13)' smaller/non-bold."""
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = align
+    p.paragraph_format.space_after = CELL_SPACE_AFTER
+    p.paragraph_format.space_before = Pt(0)
+    for text, size, bold, italic in runs:
+        run = p.add_run(text)
+        set_run_font(run, size=size, bold=bold, italic=italic)
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+
+def set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5):
+    """Table-level cell margins (Word: Table Layout > Cell Margins), in
+    twips (1pt = 20 twips) - adds real padding inside every cell, not just
+    space between lines."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    cellMar = OxmlElement('w:tblCellMar')
+    for edge, pt_val in (('top', top_pt), ('bottom', bottom_pt), ('left', left_pt), ('right', right_pt)):
+        node = OxmlElement(f'w:{edge}')
+        node.set(qn('w:w'), str(int(pt_val * 20)))
+        node.set(qn('w:type'), 'dxa')
+        cellMar.append(node)
+    tblPr.append(cellMar)
+
+
+def build_three_line_table(doc, title_text, space_before=Pt(0)):
     """Creates the 7-row x 5-column skeleton (2 header rows, 4 model rows,
     1 TabPFN row) with three-line borders, returns the table object."""
     title = doc.add_paragraph()
     run = title.add_run(title_text)
     set_run_font(run, size=11, bold=True)
+    title.paragraph_format.space_before = space_before
     title.paragraph_format.space_after = Pt(8)
 
     n_rows = 2 + len(MODELS) + 1
@@ -140,6 +174,7 @@ def build_three_line_table(doc, title_text):
     table.style = "Table Grid"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
+    set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5)
 
     col_widths = [4.5] + [3.0] * 4
     for row in table.rows:
@@ -173,12 +208,12 @@ def apply_three_line_borders(table, tabpfn_row, n_cols):
         set_cell_borders(table.cell(tabpfn_row, c), bottom=THICK)
 
 
-def add_footnote(doc, text):
+def add_footnote(doc, text, space_after=Pt(18)):
     p = doc.add_paragraph()
     run = p.add_run(text)
     set_run_font(run, size=9, italic=True)
     p.paragraph_format.space_before = Pt(6)
-    p.paragraph_format.space_after = Pt(18)
+    p.paragraph_format.space_after = space_after
     return p
 
 
@@ -199,40 +234,43 @@ for r, model in enumerate(MODELS, start=2):
     for c in range(4):
         auroc, lo, hi = AUROC_DATA[model][c]
         bold = model in best_auroc[c]
-        set_cell_lines(table1.cell(r, c + 1), [
+        set_cell_run_line(table1.cell(r, c + 1), [
             (f"{auroc:.3f}", 11, bold, False),
-            (f"{lo:.3f}–{hi:.3f}", 9, False, False),
+            (f" ({lo:.2f}–{hi:.2f})", 9, False, False),
         ])
 tabpfn_row1 = 2 + len(MODELS)
 set_cell_lines(table1.cell(tabpfn_row1, 0), [("TabPFN v3 (Prior Labs)", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
 for c in range(4):
     auroc, lo, hi = AUROC_TABPFN[c]
-    set_cell_lines(table1.cell(tabpfn_row1, c + 1), [
+    set_cell_run_line(table1.cell(tabpfn_row1, c + 1), [
         (f"{auroc:.3f}", 11, False, True),
-        (f"{lo:.3f}–{hi:.3f}", 9, False, True),
+        (f" ({lo:.2f}–{hi:.2f})", 9, False, True),
     ])
 apply_three_line_borders(table1, tabpfn_row1, 5)
-add_footnote(doc, TABPFN_FOOTNOTE)
+add_footnote(doc, TABPFN_FOOTNOTE, space_after=Pt(36))  # extra gap before Table 2 starts
 
 # Table 2 — Calibration
-table2, _ = build_three_line_table(doc, "Table 2. Calibration performance (Brier score, calibration slope) by model and cohort")
+table2, _ = build_three_line_table(doc, "Table 2. Calibration performance (Brier score, calibration slope) by model and cohort",
+                                    space_before=Pt(12))
 for r, model in enumerate(MODELS, start=2):
     set_cell_lines(table2.cell(r, 0), [(model, 11, False, False)], align=WD_ALIGN_PARAGRAPH.LEFT)
     for c in range(4):
         brier, cal = CAL_DATA[model][c]
         brier_bold = (best_brier[c] == model)
         cal_bold = (best_cal[c] == model)
-        set_cell_lines(table2.cell(r, c + 1), [
+        set_cell_run_line(table2.cell(r, c + 1), [
             (f"Brier {brier:.3f}", 11, brier_bold, False),
-            (f"Cal {cal:.3f}", 9, cal_bold, False),
+            (" (Cal ", 9, False, False),
+            (f"{cal:.3f}", 9, cal_bold, False),
+            (")", 9, False, False),
         ])
 tabpfn_row2 = 2 + len(MODELS)
 set_cell_lines(table2.cell(tabpfn_row2, 0), [("TabPFN v3 (Prior Labs)", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
 for c in range(4):
     brier, cal = CAL_TABPFN[c]
-    set_cell_lines(table2.cell(tabpfn_row2, c + 1), [
+    set_cell_run_line(table2.cell(tabpfn_row2, c + 1), [
         (f"Brier {brier:.3f}", 11, False, True),
-        (f"Cal {cal:.3f}", 9, False, True),
+        (f" (Cal {cal:.3f})", 9, False, True),
     ])
 apply_three_line_borders(table2, tabpfn_row2, 5)
 add_footnote(doc, "Bold Brier score = lowest (best) in that column among the four main classifiers. "
