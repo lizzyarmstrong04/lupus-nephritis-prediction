@@ -241,7 +241,7 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
             fontsize=10.5, va="bottom", ha="right",
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="0.7", alpha=0.85))
 
-    ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
+    ax.set_xlim([-0.02, 1.02]); ax.set_ylim([-0.02, 1.03])
     ax.set_title(c["label"], fontsize=16, fontweight="bold")
     ax.set_xlabel("1 – Specificity", fontsize=13)
     if col == 0:
