@@ -28,6 +28,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+plt.rcParams["font.family"] = "Times New Roman"
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -242,9 +243,9 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
 
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
     ax.set_title(c["label"], fontsize=11, fontweight="bold")
-    ax.set_xlabel("1 – Specificity", fontsize=9)
+    ax.set_xlabel("1 – Specificity", fontsize=13)
     if col == 0:
-        ax.set_ylabel("Sensitivity", fontsize=9)
+        ax.set_ylabel("Sensitivity", fontsize=13)
     else:
         ax.set_yticklabels([])
     ax.tick_params(labelsize=8)
@@ -254,8 +255,6 @@ legend_ax = axes_roc[legend_row, legend_col]
 legend_ax.axis("off")
 legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5) for name in MODEL_ORDER]
 legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=11, frameon=False)
-
-fig_roc.suptitle("ROC Curves — All Cohorts\n(5×k-fold CV, tuned models)", fontsize=14, fontweight="bold")
 fig_roc.savefig(f"{FIG_DIR}/roc_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_roc)
 print(f"\nSaved: {FIG_DIR}/roc_all_cohorts.png")
