@@ -238,11 +238,11 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
         annot_lines.append(f"{name}: {r['cv_auroc']:.3f}")
 
     ax.text(0.03, 0.97, "\n".join(annot_lines), transform=ax.transAxes,
-            fontsize=7, va="top", ha="left",
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="0.7", alpha=0.85))
+            fontsize=10.5, va="top", ha="left",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="0.7", alpha=0.85))
 
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
-    ax.set_title(c["label"], fontsize=11, fontweight="bold")
+    ax.set_title(c["label"], fontsize=16, fontweight="bold")
     ax.set_xlabel("1 – Specificity", fontsize=13)
     if col == 0:
         ax.set_ylabel("Sensitivity", fontsize=13)
@@ -250,11 +250,13 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
         ax.set_yticklabels([])
     ax.tick_params(labelsize=8)
 
+fig_roc.get_layout_engine().set(w_pad=0.06, h_pad=0.08, wspace=0.06, hspace=0.06)
+
 legend_row, legend_col = panel_position(len(cohorts))
 legend_ax = axes_roc[legend_row, legend_col]
 legend_ax.axis("off")
 legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5) for name in MODEL_ORDER]
-legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=11, frameon=False)
+legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=14, frameon=False)
 fig_roc.savefig(f"{FIG_DIR}/roc_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_roc)
 print(f"\nSaved: {FIG_DIR}/roc_all_cohorts.png")
