@@ -111,17 +111,17 @@ for i, c in enumerate(cohorts):
                edgecolor="0.5", linewidth=0.5, zorder=3)
 
     ax.set_xticks(x)
-    ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=9)
-    ax.set_title(c["label"], fontsize=11, fontweight="bold")
+    ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=12)
+    ax.set_title(c["label"], fontsize=15, fontweight="bold")
     ax.set_ylim(0.4, 1.0)
     ax.set_yticks(np.arange(0.4, 1.01, 0.1))
     ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5, zorder=2)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=8)
-    ax.text(0.03, 0.97, PANEL_LETTERS[i], transform=ax.transAxes, fontsize=15,
+    ax.tick_params(labelsize=11)
+    ax.text(0.03, 0.97, PANEL_LETTERS[i], transform=ax.transAxes, fontsize=17,
             fontweight="bold", va="top", ha="left", zorder=5)
     if col == 0:
-        ax.set_ylabel("AUROC", fontsize=9)
+        ax.set_ylabel("AUROC", fontsize=13)
     else:
         ax.set_yticklabels([])
 
@@ -132,12 +132,10 @@ legend_handles = [
     Patch(facecolor=lighten("#808080"), edgecolor="black", linewidth=0.6, label="Apparent"),
     Patch(facecolor="#808080", edgecolor="black", linewidth=0.6, label="Bias-corrected"),
 ]
-legend_ax.legend(handles=legend_handles, loc="center", fontsize=11, frameon=False)
+legend_ax.legend(handles=legend_handles, loc="center", fontsize=18, frameon=False)
 
-fig.suptitle("Apparent vs. Bias-Corrected AUROC — All Cohorts\n(Harrell optimism-corrected bootstrap, 1,000 iterations)",
-             fontsize=14, fontweight="bold")
 fig.text(0.5, -0.02, "LR = Logistic Regression; RF = Random Forest; XGB = XGBoost; LGBM = LightGBM",
-         ha="center", fontsize=8, style="italic", color="0.3")
+         ha="center", fontsize=11, style="italic", color="0.3")
 
 fig.savefig(f"{FIG_DIR}/optimism_barchart.png", dpi=300, bbox_inches="tight")
 plt.close(fig)
