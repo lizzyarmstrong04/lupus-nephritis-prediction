@@ -117,7 +117,7 @@ for i, c in enumerate(cohorts):
 
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=12)
-    ax.set_title(c["label"], fontsize=15, fontweight="bold")
+    ax.set_title(f"{PANEL_LETTERS[i]}. {c['label']}", fontsize=15, fontweight="bold", loc="left")
     # small headroom above 1.0 so tall bars aren't flush against the frame
     # (same fix applied to the ROC figure)
     ax.set_ylim(0.4, 1.02)
@@ -128,8 +128,6 @@ for i, c in enumerate(cohorts):
         spine.set_color("black")
         spine.set_linewidth(0.8)
     ax.tick_params(labelsize=11)
-    ax.text(0.03, 0.97, PANEL_LETTERS[i], transform=ax.transAxes, fontsize=17,
-            fontweight="bold", va="top", ha="left", zorder=5)
     if col == 0:
         ax.set_ylabel("AUROC", fontsize=13)
     else:
