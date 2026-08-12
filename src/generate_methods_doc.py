@@ -462,6 +462,14 @@ bullet(doc, "Removed Age (Now) → replaced by Age at biopsy (clinically appropr
 bullet(doc, "Removed Biopsy number for patient (proxy for disease duration)")
 bullet(doc, "Removed Age at diagnosis SLE (r=0.826 with Age at biopsy — would fail correlation threshold)")
 bullet(doc, "Removed dsDNA/SM/APL ever positive: 85.1% positive (just below 90% threshold), but clinical reasoning mirrors ANA removal — insufficient discriminatory gradient to justify inclusion")
+body(doc,
+    "Data integrity note: as of this document's generation, Data/Processed/lupus_5yr_selected_clean.xlsx "
+    "on disk still contains the dsDNA/SM/APL column (11 predictors), i.e. this manual correction has not "
+    "been re-applied to the saved file since a later rerun of feature selection. Scripts loading that file "
+    "directly (SHAP, DeLong, ensemble, TabPFN v3) should drop this column to reproduce the 10-predictor "
+    "results below exactly; src/16_roc_calibration_plots.py does so explicitly at load time. The saved "
+    "file itself should be corrected at the source when convenient."
+)
 body(doc, "Final 5-year predictors (10 variables, EPV = 16.6):")
 add_table(doc,
     ["#", "Feature", "Category"],
@@ -1189,6 +1197,11 @@ add_table(doc,
         ["esrd_shap_table_5yr.xlsx",           "outputs/esrd/",   "Mean |SHAP| per feature — ESRD 5-year"],
         ["esrd_shap_table_10yr.xlsx",          "outputs/esrd/",   "Mean |SHAP| per feature — ESRD 10-year"],
         ["esrd_delong_results.xlsx",           "outputs/esrd/",   "Pairwise DeLong's test — ESRD 5yr and 10yr"],
+        ["pmsampsize_results.xlsx",            "outputs/",        "Formal sample-size justification, all 5 cohorts (Section 12.1)"],
+        ["epv5_sensitivity_results.xlsx",      "outputs/",        "EPV-cap sensitivity results, 1yr flare + serial biopsy (Section 12.2)"],
+        ["Lupus_Project_Results.docx",         "outputs/",        "Standalone results-only companion document (tables, no methods narrative)"],
+        ["Table2_Calibration.docx",            "outputs/",        "Standalone Table 2 (Brier/calibration slope), publication format"],
+        ["Tables_1_2_Publication.docx",        "outputs/",        "Combined Table 1 (AUROC) + Table 2 (calibration), publication format"],
     ],
     col_widths=[5.5, 3.5, 7]
 )
@@ -1222,7 +1235,14 @@ add_table(doc,
         ["src/esrd/01_esrd_modelling.py",             "ESRD tuning, 5×10-fold CV, ROC/calibration plots (5yr and 10yr)"],
         ["src/esrd/02_esrd_shap.py",                  "SHAP analysis — ESRD 5-year and 10-year"],
         ["src/esrd/03_esrd_delong.py",                "Pairwise DeLong's test — ESRD"],
+        ["src/16_roc_calibration_plots.py",           "ROC + calibration figures, all 5 cohorts (reuses saved best hyperparameters, no retuning)"],
+        ["src/17_optimism_barchart.py",               "Apparent vs bias-corrected AUROC bar chart, all 5 cohorts (reads saved bootstrap results only)"],
+        ["src/22_pmsampsize.py",                      "Formal sample-size justification (Riley et al. 2020 criteria), all 5 cohorts"],
+        ["src/23_epv5_sensitivity.py",                "EPV-cap sensitivity analysis — 1-year flare and serial biopsy"],
+        ["src/24_table2_calibration.py",              "Generate standalone Table 2 (calibration) publication document"],
+        ["src/25_tables_1_2.py",                      "Generate combined Table 1 (AUROC) + Table 2 (calibration) publication document"],
         ["src/generate_methods_doc.py",               "Generate this document (python-docx)"],
+        ["src/generate_results_doc.py",               "Generate the standalone results-only companion document (python-docx)"],
     ],
     col_widths=[7, 9]
 )
