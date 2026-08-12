@@ -51,8 +51,13 @@ PANEL_LETTERS = ["A", "B", "C", "D", "E"]
 # Random Forest significantly outperformed LightGBM in the 1-Year Flare
 # cohort (p=0.001 raw, p=0.006 Holm-corrected). Every other comparison in
 # every other cohort was non-significant, so no other panel gets a bracket.
+#
+# NB: DeLong's test compares out-of-fold (OOF) CV predictions - a third,
+# separate estimate from both the "Apparent" (full-data fit) and
+# "Bias-corrected" (Harrell bootstrap) bars shown in this chart. The label
+# says so explicitly rather than implying it applies to one bar or the other.
 SIGNIFICANT_PAIRS = {
-    "1-Year Flare": [("Random Forest", "LightGBM", "p = 0.006")],
+    "1-Year Flare": [("Random Forest", "LightGBM", "p = 0.006 (DeLong, OOF predictions)")],
 }
 
 
@@ -118,8 +123,6 @@ bar_w = 0.35
 for i, c in enumerate(cohorts):
     row, col = panel_position(i)
     ax = axes[row, col]
-    ax.set_axisbelow(True)
-    ax.grid(axis="y", which="major", color="0.88", linewidth=0.7, zorder=0)
 
     panel_max = 0.0
     for j, name in enumerate(MODEL_ORDER):
@@ -143,7 +146,10 @@ for i, c in enumerate(cohorts):
     ax.set_ylim(0.4, 1.08)
     ax.set_yticks(np.arange(0.4, 1.01, 0.1))
     ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5, zorder=2)
-    ax.spines[["top", "right"]].set_visible(False)
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("black")
+        spine.set_linewidth(0.8)
     ax.tick_params(labelsize=11)
     ax.text(0.03, 0.97, PANEL_LETTERS[i], transform=ax.transAxes, fontsize=17,
             fontweight="bold", va="top", ha="left", zorder=5)
