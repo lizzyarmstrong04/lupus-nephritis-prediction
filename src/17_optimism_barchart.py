@@ -46,35 +46,18 @@ MODEL_ORDER = list(MODEL_COLORS)
 MODEL_ABBR = {"Logistic Regression": "LR", "Random Forest": "RF", "XGBoost": "XGB", "LightGBM": "LGBM"}
 PANEL_LETTERS = ["A", "B", "C", "D", "E"]
 
-# DeLong pairwise significance (src/13_delong_test.py) - the only significant
-# result across all five cohorts and six pairwise comparisons per cohort:
-# Random Forest significantly outperformed LightGBM in the 1-Year Flare
-# cohort (p=0.001 raw, p=0.006 Holm-corrected). Every other comparison in
-# every other cohort was non-significant, so no other panel gets a bracket.
-#
-# NB: DeLong's test compares out-of-fold (OOF) CV predictions - a third,
-# separate estimate from both the "Apparent" (full-data fit) and
-# "Bias-corrected" (Harrell bootstrap) bars shown in this chart. The label
-# says so explicitly rather than implying it applies to one bar or the other.
-SIGNIFICANT_PAIRS = {
-    "1-Year Flare": [("Random Forest", "LightGBM", "p = 0.006 (DeLong, OOF predictions)")],
-}
+# NB: no DeLong significance annotation on this chart. DeLong's test compares
+# out-of-fold (OOF) CV predictions, a third estimate distinct from both the
+# "Apparent" (full-data fit) and "Bias-corrected" (Harrell bootstrap) values
+# plotted here, so a significance finding from that test doesn't correspond
+# to either bar shown - see roc_all_cohorts.png (src/16_roc_calibration_plots.py)
+# instead, which annotates CV AUROC, the quantity DeLong's test actually used.
 
 
 def lighten(hex_color, amount=0.55):
     """Blend a colour toward white by `amount` (0 = original, 1 = white)."""
     r, g, b = to_rgb(hex_color)
     return (r + (1 - r) * amount, g + (1 - g) * amount, b + (1 - b) * amount)
-
-
-def add_significance_bracket(ax, x1, x2, y, label):
-    """Draws a bracket (horizontal line + short end-ticks) between x1 and x2
-    at height y, with `label` (e.g. '* p = 0.006') centred above it -
-    matching the significance-bracket convention used elsewhere in the
-    project (src/esrd/06_esrd_delong_figure.py)."""
-    tick = 0.012
-    ax.plot([x1, x1, x2, x2], [y - tick, y, y, y - tick], color="black", lw=1.1, zorder=6)
-    ax.text((x1 + x2) / 2, y + 0.006, label, ha="center", va="bottom", fontsize=10, zorder=6)
 
 
 def load_bootstrap(path, sheet, apparent_col, bc_col):
@@ -124,7 +107,6 @@ for i, c in enumerate(cohorts):
     row, col = panel_position(i)
     ax = axes[row, col]
 
-    panel_max = 0.0
     for j, name in enumerate(MODEL_ORDER):
         apparent, bc = c["data"][name]
         base = MODEL_COLORS[name]
@@ -132,18 +114,13 @@ for i, c in enumerate(cohorts):
                edgecolor="0.5", linewidth=0.5, zorder=3)
         ax.bar(x[j] + bar_w / 2, bc, width=bar_w, color=base,
                edgecolor="0.5", linewidth=0.5, zorder=3)
-        panel_max = max(panel_max, apparent, bc)
-
-    for m1, m2, label in SIGNIFICANT_PAIRS.get(c["label"], []):
-        x1, x2 = x[MODEL_ORDER.index(m1)], x[MODEL_ORDER.index(m2)]
-        add_significance_bracket(ax, x1, x2, panel_max + 0.045, f"* {label}")
 
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=12)
     ax.set_title(c["label"], fontsize=15, fontweight="bold")
-    # small headroom above 1.0 so bars/brackets near the top aren't flush
-    # against the frame (same fix applied to the ROC figure)
-    ax.set_ylim(0.4, 1.08)
+    # small headroom above 1.0 so tall bars aren't flush against the frame
+    # (same fix applied to the ROC figure)
+    ax.set_ylim(0.4, 1.02)
     ax.set_yticks(np.arange(0.4, 1.01, 0.1))
     ax.axhline(0.5, color="grey", linestyle="--", lw=0.8, alpha=0.5, zorder=2)
     for spine in ax.spines.values():

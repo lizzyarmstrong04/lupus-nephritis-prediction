@@ -237,6 +237,11 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
         ax.plot(r["fpr"], r["tpr"], color=MODEL_COLORS[name], lw=1.8)
         annot_lines.append(f"{name}: {r['cv_auroc']:.3f}")
 
+    # The only significant DeLong pairwise result across all 5 cohorts (src/13_delong_test.py):
+    # Random Forest significantly outperformed LightGBM here (p=0.001 raw, p=0.006 Holm-corrected).
+    if c["label"] == "1-Year Flare":
+        annot_lines.append("RF > LGBM (DeLong p=0.006*)")
+
     ax.text(0.97, 0.03, "\n".join(annot_lines), transform=ax.transAxes,
             fontsize=10.5, va="bottom", ha="right",
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="0.7", alpha=0.85))
