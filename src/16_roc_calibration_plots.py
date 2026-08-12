@@ -207,6 +207,8 @@ cohorts.append({
 # --- Compute ---
 
 all_results = []
+roc_rows, cal_rows, oof_rows = [], [], []
+
 for c in cohorts:
     print(f"[{c['label']}] running {c['n_splits']}x{c['n_repeats']}-fold CV "
           f"({c['X'].shape[0]} rows, {c['X'].shape[1]} predictors)...")
@@ -215,6 +217,36 @@ for c in cohorts:
     for name in models:
         print(f"    {name:<20} CV AUROC={res[name]['cv_auroc']:.3f}")
     all_results.append(res)
+
+    y_arr = c["y"].values
+    for name in MODEL_ORDER:
+        r = res[name]
+        for fpr_v, tpr_v in zip(r["fpr"], r["tpr"]):
+            roc_rows.append({"Cohort": c["label"], "Model": name, "FPR": fpr_v, "TPR": tpr_v,
+                              "CV_AUROC": round(r["cv_auroc"], 4)})
+
+        try:
+            frac_pos, mean_pred = calibration_curve(c["y"], r["oof"], n_bins=c["n_bins"], strategy="quantile")
+        except ValueError:
+            frac_pos, mean_pred = calibration_curve(c["y"], r["oof"], n_bins=max(3, c["n_bins"] // 2), strategy="quantile")
+        for mp, fp in zip(mean_pred, frac_pos):
+            cal_rows.append({"Cohort": c["label"], "Model": name,
+                              "Mean_Predicted_Probability": mp, "Observed_Event_Rate": fp})
+
+        for idx, (true_label, prob) in enumerate(zip(y_arr, r["oof"])):
+            oof_rows.append({"Cohort": c["label"], "Model": name, "Sample_Index": idx,
+                              "True_Label": int(true_label), "OOF_Predicted_Probability": prob})
+
+curve_data_path = f"{OUT}/roc_calibration_curve_data.xlsx"
+with pd.ExcelWriter(curve_data_path, engine="openpyxl") as writer:
+    pd.DataFrame(roc_rows).to_excel(writer, sheet_name="ROC_curves", index=False)
+    pd.DataFrame(cal_rows).to_excel(writer, sheet_name="Calibration_curves", index=False)
+    pd.DataFrame(oof_rows).to_excel(writer, sheet_name="OOF_predictions", index=False)
+print(f"\nSaved: {curve_data_path}")
+print("  ROC_curves: full-data-fit FPR/TPR points per model per cohort (matches plotted curves)")
+print("  Calibration_curves: decile-binned mean predicted prob vs observed event rate")
+print("  OOF_predictions: raw out-of-fold probability + true label per sample, per model per cohort")
+print("  (for full flexibility if you want to build your own curves/thresholds)")
 
 GRID_ROWS, GRID_COLS = 2, 3  # 5 cohort panels + 1 legend panel
 
