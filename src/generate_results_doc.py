@@ -308,7 +308,7 @@ add_table(doc, ["Feature", "Log Reg", "Rand Forest", "XGBoost", "LightGBM", "Mea
 
 # 6. TABPFN V3
 heading(doc, "6. TabPFN v3 Benchmark", 1)
-body(doc, "TabPFN v3 (Prior Labs hosted API, tabpfn_client==0.3.1) benchmarked against the four main classifiers using the same 5×10-fold CV protocol, all four cohorts.")
+body(doc, "TabPFN v3 (Prior Labs hosted API, tabpfn_client==0.3.1) benchmarked against the four main classifiers using the same CV protocol per cohort, all five cohorts (excluded from Harrell bootstrap and DeLong testing — shown as a reference point, not a formal competitor).")
 
 heading(doc, "6.1 1-Year Flare", 2)
 add_table(doc, ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"], [
@@ -347,7 +347,18 @@ add_table(doc, ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"], [
     ["TabPFN v3",           "0.817", "0.710–0.926", "0.122", "0.904"],
 ], col_widths=[4.5, 3, 3.5, 2.5, 3])
 body(doc, "TabPFN v3 tied Random Forest for the highest AUROC (0.817) and again produced the best-calibrated probabilities (Brier 0.122).")
-body(doc, "Across all four cohorts, TabPFN v3's main advantage is consistently calibration (Brier score), not discrimination (AUROC) — it matches but does not exceed the best-tuned model's AUROC in every case.")
+
+heading(doc, "6.5 Serial Biopsy", 2)
+add_table(doc, ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"], [
+    ["Logistic Regression", "0.676", "0.434–0.873", "0.235", "0.570"],
+    ["Random Forest",       "0.588", "0.318–0.824", "0.251", "0.320"],
+    ["XGBoost",             "0.648", "0.453–0.818", "0.249", "0.053"],
+    ["LightGBM",            "0.631", "0.443–0.855", "0.240", "0.346"],
+    ["TabPFN v3",           "0.626", "0.352–0.841", "0.251", "0.190"],
+], col_widths=[4.5, 3, 3.5, 2.5, 3])
+body(doc, "TabPFN v3 (AUROC 0.626) fell mid-range, indistinguishable from the four main classifiers given the wide CIs at n=70. Unlike every other cohort, it showed no calibration advantage here (Brier 0.251, tied worst; slope 0.190) — but calibration is degenerate across all five models in this cohort (XGBoost slope=0.053). Exploratory only; see Section 7 for the formal sample-size shortfall.")
+
+body(doc, "Across the four larger cohorts, TabPFN v3's main advantage is consistently calibration (Brier score), not discrimination (AUROC) — it matches but does not exceed the best-tuned model's AUROC in every case. That pattern did not hold in serial biopsy, the one cohort too small to calibrate any model meaningfully.")
 
 # 7. SAMPLE SIZE JUSTIFICATION
 heading(doc, "7. Sample Size Justification (pmsampsize)", 1)

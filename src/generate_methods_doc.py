@@ -129,7 +129,7 @@ body(doc,
     "and evaluation framework — the same 6-step feature selection pipeline (leakage removal, "
     "dominant-binary, low-variance, high-correlation, VIF, LASSO with EPV-10 cap), MICE "
     "imputation (done as a separate pre-step before modelling), and Harrell bootstrap are applied. "
-    "An additional TabPFN v3 in-context learning benchmark was run on all four datasets (Section 10)."
+    "An additional TabPFN v3 in-context learning benchmark was run on all five datasets (Section 10)."
 )
 body(doc,
     "The primary outcome in flare analyses is binary (flare/no flare). The ESRD outcome is a "
@@ -1077,13 +1077,18 @@ body(doc,
     "token (TABPFN_TOKEN environment variable) rather than run locally."
 )
 body(doc,
-    "TabPFN v3 was benchmarked on all four datasets — 1-year flare, 5-year flare, ESRD 5-year, "
-    "ESRD 10-year — using the same 5×10-fold repeated stratified CV protocol as the four main "
-    "classifiers, so results are directly comparable. Harrell optimism-corrected bootstrap was "
-    "not performed for TabPFN v3: each bootstrap iteration requires a new API call, making 1,000 "
-    "iterations computationally and financially impractical against a hosted service. CV results "
-    "only are reported. To tolerate the hosted API's occasional dropped connections, the script "
-    "retries each fold up to 5 times (15s backoff) and checkpoints completed folds to "
+    "TabPFN v3 was benchmarked on all five datasets — 1-year flare, 5-year flare, ESRD 5-year, "
+    "ESRD 10-year, serial biopsy — using the same cross-validation protocol as the four main "
+    "classifiers for each cohort (5×10-fold for 1-year/5-year/ESRD, 5×5-fold for serial biopsy, "
+    "matching src/5_year/11_serial_modelling_5yr.py), so results are directly comparable within "
+    "each cohort. Harrell optimism-corrected bootstrap was not performed for TabPFN v3: each "
+    "bootstrap iteration requires a new API call, making 1,000 iterations computationally and "
+    "financially impractical against a hosted service. TabPFN v3 is therefore excluded from the "
+    "bootstrap-based apparent-vs-bias-corrected comparison (Section 6.4, outputs/figures/"
+    "optimism_barchart.png) and from DeLong pairwise significance testing (Section 8) — it is "
+    "shown throughout as a reference point rather than a formal competitor. CV results only are "
+    "reported. To tolerate the hosted API's occasional dropped connections, the script retries "
+    "each fold up to 5 times (15s backoff) and checkpoints completed folds to "
     "outputs/tabpfn_v3_checkpoint.pkl so an interrupted run can resume without repeating work."
 )
 
@@ -1165,6 +1170,28 @@ body(doc,
     "score, not AUROC."
 )
 
+body(doc, "Serial Biopsy — comparison with existing models (5×5-fold CV):")
+add_table(doc,
+    ["Model", "CV AUROC", "95% CI", "Brier", "Cal Slope"],
+    [
+        ["Logistic Regression", "0.676", "0.434–0.873", "0.235", "0.570"],
+        ["Random Forest",       "0.588", "0.318–0.824", "0.251", "0.320"],
+        ["XGBoost",             "0.648", "0.453–0.818", "0.249", "0.053"],
+        ["LightGBM",            "0.631", "0.443–0.855", "0.240", "0.346"],
+        ["TabPFN v3",           "0.626", "0.352–0.841", "0.251", "0.190"],
+    ],
+    col_widths=[4.5, 3, 3.5, 2.5, 3]
+)
+body(doc,
+    "TabPFN v3 (AUROC 0.626) fell in the middle of the range, indistinguishable from all four "
+    "main classifiers given the very wide confidence intervals at this sample size (n=70). Unlike "
+    "every other cohort, TabPFN v3 did not show a calibration advantage here (Brier 0.251, tied "
+    "for worst with Random Forest) — its calibration slope (0.190) was also poor, though this "
+    "cohort's calibration is degenerate across all five models (Section 7.3: XGBoost slope=0.053, "
+    "near-constant predictions). Results for this cohort should be treated as exploratory; see "
+    "Section 12 for the formal sample-size justification showing this cohort is underpowered."
+)
+
 # 11. FILE AND SCRIPT REFERENCE
 
 heading(doc, "11. File and Script Reference", 1)
@@ -1191,7 +1218,9 @@ add_table(doc,
         ["shap_importance_table.xlsx",         "outputs/",        "Mean |SHAP| per feature per model — 1-year"],
         ["shap_importance_table_5yr.xlsx",     "outputs/",        "Mean |SHAP| per feature per model — 5-year"],
         ["delong_test_results.xlsx",           "outputs/",        "Pairwise DeLong's test, all flare cohorts (4 sheets)"],
-        ["tabpfn_v3_all_cohorts.xlsx",         "outputs/",        "TabPFN v3 vs existing models — all 4 cohorts (4 sheets)"],
+        ["tabpfn_v3_all_cohorts.xlsx",         "outputs/",        "TabPFN v3 vs existing models — all 5 cohorts (5 sheets)"],
+        ["tabpfn_v3_oof_predictions.xlsx",     "outputs/",        "TabPFN v3 raw OOF predictions — serial biopsy only (see Section 10.1)"],
+        ["roc_calibration_curve_data.xlsx",    "outputs/",        "ROC/calibration curve points + raw OOF predictions, 4 main classifiers, all 5 cohorts"],
         ["esrd_model_results.xlsx",            "outputs/esrd/",   "ESRD CV results — 5yr and 10yr (2 sheets)"],
         ["esrd_best_params.json",              "outputs/esrd/",   "ESRD best hyperparameters — 5yr and 10yr (JSON)"],
         ["esrd_shap_table_5yr.xlsx",           "outputs/esrd/",   "Mean |SHAP| per feature — ESRD 5-year"],

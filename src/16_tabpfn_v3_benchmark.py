@@ -1,8 +1,10 @@
 """
-TabPFN v3 (client API) benchmark — all four cohorts:
-  1-year flare, 5-year flare, ESRD 5-year, ESRD 10-year
+TabPFN v3 (client API) benchmark — all five cohorts:
+  1-year flare, 5-year flare, ESRD 5-year, ESRD 10-year, serial biopsy
 
-Protocol: 5×10-fold RepeatedStratifiedKFold CV (50 folds per cohort)
+Protocol: RepeatedStratifiedKFold CV, matching each cohort's own modelling
+          script - 5x10-fold (50 folds) for 1yr/5yr/ESRD, 5x5-fold (25
+          folds) for serial biopsy (n=70, too small for 10-fold).
 Metrics:  AUROC, Brier score, calibration slope
 Saves:    outputs/tabpfn_v3_all_cohorts.xlsx  (one sheet per cohort)
           + incremental .pkl checkpoint after every fold so a dropped
@@ -10,6 +12,16 @@ Saves:    outputs/tabpfn_v3_all_cohorts.xlsx  (one sheet per cohort)
 
 Robustness: 5 retry attempts per fold, 15s sleep on failure, 3s pause
             between every fold.
+
+Checkpoint resume: cohorts already marked "done" in the checkpoint are
+skipped entirely (no re-billed API calls) - so adding serial biopsy here
+only spends usage on the new cohort, not the 4 already completed.
+
+OOF predictions: retained (per-sample, mapped back to original row order)
+so ROC/calibration curves can be built for TabPFN v3, not just aggregate
+metrics - this was missing for the first 4 cohorts (checkpoint only kept
+aggregate fold metrics), so only the serial biopsy sheet has curve-ready
+data (see outputs/tabpfn_v3_oof_predictions.xlsx).
 """
 
 import time, warnings, os, pickle
@@ -66,15 +78,19 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
     print(f"TabPFN v3 — {label}")
     print(f"  n={len(y)}, events={int(y.sum())} ({y.mean()*100:.1f}%)")
 
+    n_folds = n_splits * n_repeats
+
     # Resume partially-completed folds if checkpoint exists
     completed = checkpoint.get(label, {}).get("folds", {})
     aurocs = list(completed.get("aurocs", []))
     briers = list(completed.get("briers", []))
     slopes = list(completed.get("slopes", []))
+    oof_sum   = np.array(completed.get("oof_sum", np.zeros(len(y))), dtype=float)
+    oof_count = np.array(completed.get("oof_count", np.zeros(len(y))), dtype=float)
     start_fold = len(aurocs)
 
     if start_fold > 0:
-        print(f"  Resuming from fold {start_fold+1}/50")
+        print(f"  Resuming from fold {start_fold+1}/{n_folds}")
 
     CV = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                   random_state=42)
@@ -108,11 +124,14 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
         aurocs.append(roc_auc_score(y.iloc[te], probs))
         briers.append(brier_score_loss(y.iloc[te], probs))
         slopes.append(calibration_slope(y.iloc[te].values, probs))
+        oof_sum[te]   += probs
+        oof_count[te] += 1
 
         # Save after every fold
         checkpoint[label] = {
             "done":   False,
-            "folds":  {"aurocs": aurocs, "briers": briers, "slopes": slopes},
+            "folds":  {"aurocs": aurocs, "briers": briers, "slopes": slopes,
+                       "oof_sum": oof_sum.tolist(), "oof_count": oof_count.tolist()},
             "result": None,
         }
         save_ckpt()
@@ -120,7 +139,9 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
         time.sleep(fold_pause)
 
         if (i + 1) % 10 == 0:
-            print(f"  fold {i+1}/50  running AUROC={np.mean(aurocs):.3f}", flush=True)
+            print(f"  fold {i+1}/{n_folds}  running AUROC={np.mean(aurocs):.3f}", flush=True)
+
+    oof_probs = oof_sum / np.where(oof_count > 0, oof_count, 1)
 
     result = {
         "Model":                  "TabPFN v3",
@@ -130,6 +151,7 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
         "CV Brier Score":         round(np.mean(briers), 3),
         "CV Calibration Slope":   round(np.mean(slopes), 3),
         "N folds completed":      len(aurocs),
+        "oof_probs":              oof_probs.tolist(),
     }
 
     checkpoint[label] = {"done": True, "folds": None, "result": result}
@@ -141,39 +163,60 @@ def run_cv(X, y, label, n_splits=10, n_repeats=5,
     return result
 
 # Load datasets
-df1   = pd.read_excel(f"{PROC}/lupus_1yr_selected_clean.xlsx")
-df5   = pd.read_excel(f"{PROC}/lupus_5yr_selected_clean.xlsx")
-df_e5 = pd.read_excel(f"{PROC}/esrd_5yr_selected.xlsx")
-df_e10= pd.read_excel(f"{PROC}/esrd_10yr_selected.xlsx")
+df1     = pd.read_excel(f"{PROC}/lupus_1yr_selected_clean.xlsx")
+df5     = pd.read_excel(f"{PROC}/lupus_5yr_selected_clean.xlsx")
+df_e5   = pd.read_excel(f"{PROC}/esrd_5yr_selected.xlsx")
+df_e10  = pd.read_excel(f"{PROC}/esrd_10yr_selected.xlsx")
+df_ser  = pd.read_excel(f"{PROC}/lupus_5yr_serial_selected.xlsx")
 
+# (label, X, y, n_splits, n_repeats) - serial biopsy uses 5x5-fold (n=70,
+# too small for 10-fold), matching src/5_year/11_serial_modelling_5yr.py
 COHORTS = [
-    ("1yr_flare",  df1.drop(columns=["flare_1yr"]),   df1["flare_1yr"].astype(int)),
-    ("5yr_flare",  df5.drop(columns=["flare_5yr"]),   df5["flare_5yr"].astype(int)),
-    ("esrd_5yr",   df_e5.drop(columns=["esrd_5yr"]),  df_e5["esrd_5yr"].astype(int)),
-    ("esrd_10yr",  df_e10.drop(columns=["esrd_10yr"]),df_e10["esrd_10yr"].astype(int)),
+    ("1yr_flare",     df1.drop(columns=["flare_1yr"]),    df1["flare_1yr"].astype(int),    10, 5),
+    ("5yr_flare",     df5.drop(columns=["flare_5yr"]),    df5["flare_5yr"].astype(int),    10, 5),
+    ("esrd_5yr",      df_e5.drop(columns=["esrd_5yr"]),   df_e5["esrd_5yr"].astype(int),   10, 5),
+    ("esrd_10yr",     df_e10.drop(columns=["esrd_10yr"]), df_e10["esrd_10yr"].astype(int), 10, 5),
+    ("serial_biopsy", df_ser.drop(columns=["flare_5yr"]), df_ser["flare_5yr"].astype(int),  5, 5),
 ]
 
-# Run all cohorts
+# Run all cohorts (already-completed cohorts are skipped via checkpoint resume)
 results = {}
-for label, X, y in COHORTS:
-    results[label] = run_cv(X, y, label)
+for label, X, y, n_splits, n_repeats in COHORTS:
+    results[label] = run_cv(X, y, label, n_splits=n_splits, n_repeats=n_repeats)
 
 # Load existing model results to build comparison tables
-cv1   = pd.read_excel(f"{OUT}/1yr_model_results.xlsx",       sheet_name="CV Results")
-cv5   = pd.read_excel(f"{OUT}/5yr_model_results.xlsx",       sheet_name="CV Results")
-cve5  = pd.read_excel(f"{OUT}/esrd/esrd_model_results.xlsx", sheet_name="5yr CV Results")
-cve10 = pd.read_excel(f"{OUT}/esrd/esrd_model_results.xlsx", sheet_name="10yr CV Results")
+cv1   = pd.read_excel(f"{OUT}/1yr_model_results.xlsx",              sheet_name="CV Results")
+cv5   = pd.read_excel(f"{OUT}/5yr_model_results.xlsx",              sheet_name="CV Results")
+cve5  = pd.read_excel(f"{OUT}/esrd/esrd_model_results.xlsx",        sheet_name="5yr CV Results")
+cve10 = pd.read_excel(f"{OUT}/esrd/esrd_model_results.xlsx",        sheet_name="10yr CV Results")
+cvser = pd.read_excel(f"{OUT}/5yr_serial_model_results.xlsx",       sheet_name="CV Results")
 
 def append_tabpfn(existing_df, res):
-    row = pd.DataFrame([{c: res.get(c, np.nan) for c in existing_df.columns}])
+    row = pd.DataFrame([{c: res.get(c, np.nan) for c in existing_df.columns if c != "oof_probs"}])
     return pd.concat([existing_df, row], ignore_index=True)
 
 compare = {
-    "1yr_flare":  append_tabpfn(cv1,   results["1yr_flare"]),
-    "5yr_flare":  append_tabpfn(cv5,   results["5yr_flare"]),
-    "esrd_5yr":   append_tabpfn(cve5,  results["esrd_5yr"]),
-    "esrd_10yr":  append_tabpfn(cve10, results["esrd_10yr"]),
+    "1yr_flare":     append_tabpfn(cv1,   results["1yr_flare"]),
+    "5yr_flare":     append_tabpfn(cv5,   results["5yr_flare"]),
+    "esrd_5yr":      append_tabpfn(cve5,  results["esrd_5yr"]),
+    "esrd_10yr":     append_tabpfn(cve10, results["esrd_10yr"]),
+    "serial_biopsy": append_tabpfn(cvser, results["serial_biopsy"]),
 }
+
+# Save OOF predictions where available (only newly-run cohorts retain this -
+# see module docstring), for building ROC/calibration curves
+oof_export_rows = []
+for label, X, y, *_ in COHORTS:
+    oof = results[label].get("oof_probs")
+    if oof is None:
+        continue
+    for idx, (true_label, prob) in enumerate(zip(y.values, oof)):
+        oof_export_rows.append({"Cohort": label, "Sample_Index": idx,
+                                 "True_Label": int(true_label), "OOF_Predicted_Probability": prob})
+if oof_export_rows:
+    oof_path = f"{OUT}/tabpfn_v3_oof_predictions.xlsx"
+    pd.DataFrame(oof_export_rows).to_excel(oof_path, index=False)
+    print(f"Saved: {oof_path}")
 
 # Print summary
 for label, df in compare.items():
