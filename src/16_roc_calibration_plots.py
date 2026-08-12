@@ -52,6 +52,7 @@ MODEL_COLORS = {
     "LightGBM":            "#d62728",
 }
 MODEL_ORDER = list(MODEL_COLORS)
+PANEL_LETTERS = ["A", "B", "C", "D", "E"]
 
 
 def make_rf(p):
@@ -247,7 +248,7 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="0.7", alpha=0.85))
 
     ax.set_xlim([-0.02, 1.02]); ax.set_ylim([-0.02, 1.03])
-    ax.set_title(c["label"], fontsize=16, fontweight="bold")
+    ax.set_title(f"{PANEL_LETTERS[i]}. {c['label']}", fontsize=16, fontweight="bold", loc="left")
     ax.set_xlabel("1 – Specificity", fontsize=13)
     if col == 0:
         ax.set_ylabel("Sensitivity", fontsize=13)
@@ -284,7 +285,7 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
         ax.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=1.8, markersize=4)
 
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
-    ax.set_title(c["label"], fontsize=16, fontweight="bold")
+    ax.set_title(f"{PANEL_LETTERS[i]}. {c['label']}", fontsize=16, fontweight="bold", loc="left")
     ax.set_xlabel("Mean Predicted Probability", fontsize=13)
     if col == 0:
         ax.set_ylabel("Observed Event Rate", fontsize=13)
