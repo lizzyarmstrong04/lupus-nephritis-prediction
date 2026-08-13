@@ -248,28 +248,35 @@ print("  Calibration_curves: decile-binned mean predicted prob vs observed event
 print("  OOF_predictions: raw out-of-fold probability + true label per sample, per model per cohort")
 print("  (for full flexibility if you want to build your own curves/thresholds)")
 
-# TabPFN v3: reference curves for Serial Biopsy only - the only cohort for
-# which raw OOF predictions were retained (src/16_tabpfn_v3_benchmark.py).
-# Excluded from DeLong's test and Harrell bootstrap (see Methods Section
-# 10.1), so it is drawn distinctly (dashed, grey) rather than as a normal
-# competitor, and is not added to the shared model-colour legend.
+# TabPFN v3: reference curves, wherever raw OOF predictions were retained
+# (src/16_tabpfn_v3_benchmark.py). Excluded from DeLong's test and Harrell
+# bootstrap (see Methods Section 10.1), so it is drawn distinctly (dashed,
+# grey) rather than as a normal competitor, with its own legend entry
+# labelled as a reference rather than a fifth model in the comparison.
 TABPFN_COLOR = "0.45"
-tabpfn_serial = None
+TABPFN_COHORT_KEY = {
+    "1-Year Flare": "1yr_flare", "5-Year Flare": "5yr_flare", "Serial Biopsy": "serial_biopsy",
+    "ESRD 5-Year": "esrd_5yr", "ESRD 10-Year": "esrd_10yr",
+}
+tabpfn_curves = {}
 try:
-    oof_tabpfn = pd.read_excel(f"{OUT}/tabpfn_v3_oof_predictions.xlsx")
-    oof_tabpfn = oof_tabpfn[oof_tabpfn["Cohort"] == "serial_biopsy"].sort_values("Sample_Index")
-    if len(oof_tabpfn):
+    oof_tabpfn_all = pd.read_excel(f"{OUT}/tabpfn_v3_oof_predictions.xlsx")
+    for label, key in TABPFN_COHORT_KEY.items():
+        oof_tabpfn = oof_tabpfn_all[oof_tabpfn_all["Cohort"] == key].sort_values("Sample_Index")
+        if not len(oof_tabpfn):
+            continue
         y_true = oof_tabpfn["True_Label"].values
         probs = oof_tabpfn["OOF_Predicted_Probability"].values
         fpr_t, tpr_t, _ = roc_curve(y_true, probs)
         auroc_t = roc_auc_score(y_true, probs)
+        n_bins = next(c["n_bins"] for c in cohorts if c["label"] == label)
         try:
-            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=5, strategy="quantile")
+            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=n_bins, strategy="quantile")
         except ValueError:
-            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=3, strategy="quantile")
-        tabpfn_serial = {"fpr": fpr_t, "tpr": tpr_t, "auroc": auroc_t,
-                          "mean_pred": mean_pred_t, "frac_pos": frac_pos_t}
-        print(f"\n[TabPFN v3 reference] Serial Biopsy: AUROC={auroc_t:.3f} (OOF, from live run)")
+            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=max(3, n_bins // 2), strategy="quantile")
+        tabpfn_curves[label] = {"fpr": fpr_t, "tpr": tpr_t, "auroc": auroc_t,
+                                 "mean_pred": mean_pred_t, "frac_pos": frac_pos_t}
+        print(f"\n[TabPFN v3 reference] {label}: AUROC={auroc_t:.3f} (OOF, from live run)")
 except FileNotFoundError:
     print("\n[TabPFN v3 reference] outputs/tabpfn_v3_oof_predictions.xlsx not found - skipping.")
 
@@ -300,10 +307,10 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
     if c["label"] == "1-Year Flare":
         annot_lines.append("RF > LGBM (DeLong p=0.006*)")
 
-    if c["label"] == "Serial Biopsy" and tabpfn_serial is not None:
-        ax.plot(tabpfn_serial["fpr"], tabpfn_serial["tpr"], color=TABPFN_COLOR,
-                lw=1.6, linestyle="--")
-        annot_lines.append(f"TabPFN v3 (OOF): {tabpfn_serial['auroc']:.3f} (ref.)†")
+    tp = tabpfn_curves.get(c["label"])
+    if tp is not None:
+        ax.plot(tp["fpr"], tp["tpr"], color=TABPFN_COLOR, lw=1.6, linestyle="--")
+        annot_lines.append(f"TabPFN v3 (OOF): {tp['auroc']:.3f} (ref.)†")
 
     ax.text(0.97, 0.03, "\n".join(annot_lines), transform=ax.transAxes,
             fontsize=10.5, va="bottom", ha="right",
@@ -324,12 +331,16 @@ legend_row, legend_col = panel_position(len(cohorts))
 legend_ax = axes_roc[legend_row, legend_col]
 legend_ax.axis("off")
 legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5) for name in MODEL_ORDER]
-legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=14, frameon=False)
+legend_labels = list(MODEL_ORDER)
+if tabpfn_curves:
+    legend_handles.append(plt.Line2D([0], [0], color=TABPFN_COLOR, lw=1.6, linestyle="--"))
+    legend_labels.append("TabPFN v3 (reference)")
+legend_ax.legend(legend_handles, legend_labels, loc="center", fontsize=14, frameon=False)
 
-if tabpfn_serial is not None:
-    fig_roc.text(0.5, -0.02, "†TabPFN v3 (dashed grey, Serial Biopsy panel only): reference point from "
-                 "pooled out-of-fold predictions, not the fold-mean 'CV AUROC' convention used for the other "
-                 "four models (hence the different value from the 0.626 reported elsewhere) - excluded from "
+if tabpfn_curves:
+    fig_roc.text(0.5, -0.02, "†TabPFN v3 (dashed grey): reference point from pooled out-of-fold "
+                 "predictions, not the fold-mean 'CV AUROC' convention used for the other four models "
+                 "(so values differ slightly from those reported in Methods/Results) - excluded from "
                  "DeLong's test and Harrell bootstrap correction.",
                  ha="center", fontsize=8, style="italic", color="0.4")
 
@@ -354,10 +365,10 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
             frac_pos, mean_pred = calibration_curve(c["y"], oof, n_bins=max(3, c["n_bins"] // 2), strategy="quantile")
         ax.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=1.8, markersize=4)
 
-    if c["label"] == "Serial Biopsy" and tabpfn_serial is not None:
-        ax.plot(tabpfn_serial["mean_pred"], tabpfn_serial["frac_pos"], "^--",
-                color=TABPFN_COLOR, lw=1.6, markersize=5)
-        ax.text(0.03, 0.97, f"TabPFN v3 (OOF): {tabpfn_serial['auroc']:.3f} (ref.)†", transform=ax.transAxes,
+    tp = tabpfn_curves.get(c["label"])
+    if tp is not None:
+        ax.plot(tp["mean_pred"], tp["frac_pos"], "^--", color=TABPFN_COLOR, lw=1.6, markersize=5)
+        ax.text(0.03, 0.97, f"TabPFN v3 (OOF): {tp['auroc']:.3f} (ref.)†", transform=ax.transAxes,
                 fontsize=9, va="top", ha="left", color=TABPFN_COLOR, style="italic")
 
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
@@ -375,12 +386,16 @@ legend_row, legend_col = panel_position(len(cohorts))
 legend_ax = axes_cal[legend_row, legend_col]
 legend_ax.axis("off")
 legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5, marker="o") for name in MODEL_ORDER]
-legend_ax.legend(legend_handles, MODEL_ORDER, loc="center", fontsize=14, frameon=False)
+legend_labels = list(MODEL_ORDER)
+if tabpfn_curves:
+    legend_handles.append(plt.Line2D([0], [0], color=TABPFN_COLOR, lw=1.6, linestyle="--", marker="^"))
+    legend_labels.append("TabPFN v3 (reference)")
+legend_ax.legend(legend_handles, legend_labels, loc="center", fontsize=14, frameon=False)
 
-if tabpfn_serial is not None:
-    fig_cal.text(0.5, -0.02, "†TabPFN v3 (dashed grey, Serial Biopsy panel only): reference point from "
-                 "pooled out-of-fold predictions, not the fold-mean 'CV AUROC' convention used for the other "
-                 "four models (hence the different value from the 0.626 reported elsewhere) - excluded from "
+if tabpfn_curves:
+    fig_cal.text(0.5, -0.02, "†TabPFN v3 (dashed grey): reference point from pooled out-of-fold "
+                 "predictions, not the fold-mean 'CV AUROC' convention used for the other four models "
+                 "(so values differ slightly from those reported in Methods/Results) - excluded from "
                  "DeLong's test and Harrell bootstrap correction.",
                  ha="center", fontsize=8, style="italic", color="0.4")
 
