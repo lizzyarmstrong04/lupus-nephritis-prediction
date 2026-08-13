@@ -8,9 +8,18 @@ same outer cross-validation protocol (same n_splits/n_repeats/random_state as
 the cohort's own modelling script) to reproduce identical out-of-fold (OOF)
 predictions, then plots two separate figures, each a 2x3 grid (5 cohort panels
 + 1 legend panel):
-  - ROC curves (model fit on full data; AUROC annotated top-left per panel)
-  - Calibration curves (OOF probability decile vs. observed event rate,
-    45-degree reference line)
+  - ROC curves, built from pooled OOF predictions (not a full-data-fit) so
+    the annotated AUROC always matches what's actually drawn
+  - Calibration curves: equal-frequency (quantile) binned OOF probability vs.
+    observed event rate, with Wilson 95% CI error bars per bin (5 bins for
+    1yr/5yr/ESRD, 3 for serial biopsy - n=70 is too small for 5)
+
+All five models (the four main classifiers + TabPFN v3, where available)
+use the same OOF-pooled AUROC convention on this figure, so every printed
+number matches its own curve. This differs slightly from the fold-mean "CV
+AUROC" reported in the Methods/Results docs and Tables (a different,
+also-valid aggregation of the same cross-validation) - the two are not
+meant to be read as identical.
 
 Uses the project's standard model colour scheme (src/1_year/06_modelling_1yr.py,
 src/5_year/05_modelling_5yr.py, src/5_year/11_serial_modelling_5yr.py):
@@ -34,11 +43,43 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.calibration import calibration_curve
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
+
+
+def wilson_ci(k, n, z=1.96):
+    """Wilson score interval for a binomial proportion k/n."""
+    if n == 0:
+        return (np.nan, np.nan)
+    phat = k / n
+    denom = 1 + z**2 / n
+    center = (phat + z**2 / (2 * n)) / denom
+    margin = (z * np.sqrt(phat * (1 - phat) / n + z**2 / (4 * n**2))) / denom
+    return (max(0.0, center - margin), min(1.0, center + margin))
+
+
+def calibration_bins_with_ci(y_true, y_prob, n_bins):
+    """Equal-frequency (quantile) binning - each bin holds a comparable
+    number of patients, unlike equal-width binning. Returns per-bin mean
+    predicted probability, observed event rate, and Wilson 95% CI bounds."""
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    order = np.argsort(y_prob)
+    yt_sorted, yp_sorted = y_true[order], y_prob[order]
+    mean_pred, obs_rate, ci_lo, ci_hi = [], [], [], []
+    for idx in np.array_split(np.arange(len(y_prob)), n_bins):
+        if len(idx) == 0:
+            continue
+        yt, yp = yt_sorted[idx], yp_sorted[idx]
+        n, k = len(idx), yt.sum()
+        mean_pred.append(yp.mean())
+        obs_rate.append(k / n)
+        lo, hi = wilson_ci(k, n)
+        ci_lo.append(lo)
+        ci_hi.append(hi)
+    return np.array(mean_pred), np.array(obs_rate), np.array(ci_lo), np.array(ci_hi)
 
 BASE = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project"
 PROC = f"{BASE}/Data/Processed"
@@ -93,27 +134,25 @@ def build_models(best_params, spw):
 
 
 def get_oof_and_roc(X, y, models, n_splits, n_repeats):
-    """Reruns the cohort's outer CV to get OOF probabilities (for calibration)
-    and fits each model on the full data (for the ROC curve, matching the
-    project's existing convention of drawing ROC on the full-data fit while
-    reporting CV-mean AUROC as the annotated value)."""
+    """Reruns the cohort's outer CV to get pooled out-of-fold probabilities,
+    then builds the ROC curve and AUROC directly from those OOF predictions
+    (not a full-data fit) - so the plotted curve and the annotated AUROC
+    are always the same underlying computation."""
     CV = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=42)
     results = {}
     for name, pipe in models.items():
-        fold_aurocs = []
         oof_probs, oof_counts = np.zeros(len(y)), np.zeros(len(y))
         for tr, te in CV.split(X, y):
             pipe.fit(X.iloc[tr], y.iloc[tr])
             probs = pipe.predict_proba(X.iloc[te])[:, 1]
-            fold_aurocs.append(roc_auc_score(y.iloc[te], probs))
             oof_probs[te] += probs
             oof_counts[te] += 1
         oof_probs = oof_probs / np.where(oof_counts > 0, oof_counts, 1)
 
-        pipe.fit(X, y)
-        fpr, tpr, _ = roc_curve(y, pipe.predict_proba(X)[:, 1])
+        fpr, tpr, _ = roc_curve(y, oof_probs)
+        auroc = roc_auc_score(y, oof_probs)
 
-        results[name] = {"cv_auroc": np.mean(fold_aurocs), "oof": oof_probs, "fpr": fpr, "tpr": tpr}
+        results[name] = {"auroc": auroc, "oof": oof_probs, "fpr": fpr, "tpr": tpr}
     return results
 
 
@@ -157,7 +196,7 @@ cohorts.append({
     "label": "1-Year Flare",
     "X": df.drop(columns=["flare_1yr"]), "y": df["flare_1yr"].astype(int),
     "best_params": load_json_params(f"{OUT}/1yr_best_params.json"),
-    "spw": 3.34, "n_splits": 10, "n_repeats": 5, "n_bins": 10,
+    "spw": 3.34, "n_splits": 10, "n_repeats": 5, "n_bins": 5,
 })
 
 # 5-Year flare
@@ -172,7 +211,7 @@ cohorts.append({
     "label": "5-Year Flare",
     "X": df.drop(columns=["flare_5yr"]), "y": df["flare_5yr"].astype(int),
     "best_params": load_json_params(f"{OUT}/5yr_best_params.json"),
-    "spw": round(190 / 166, 2), "n_splits": 10, "n_repeats": 5, "n_bins": 10,
+    "spw": round(190 / 166, 2), "n_splits": 10, "n_repeats": 5, "n_bins": 5,
 })
 
 # Serial biopsy
@@ -181,7 +220,7 @@ cohorts.append({
     "label": "Serial Biopsy",
     "X": df.drop(columns=["flare_5yr"]), "y": df["flare_5yr"].astype(int),
     "best_params": load_xlsx_params(f"{OUT}/5yr_serial_model_results.xlsx"),
-    "spw": round(36 / 34, 2), "n_splits": 5, "n_repeats": 5, "n_bins": 5,
+    "spw": round(36 / 34, 2), "n_splits": 5, "n_repeats": 5, "n_bins": 3,
 })
 
 # ESRD 5-Year
@@ -191,7 +230,7 @@ cohorts.append({
     "label": "ESRD 5-Year",
     "X": df.drop(columns=["esrd_5yr"]), "y": y,
     "best_params": load_json_params(f"{OUT}/esrd/esrd_best_params.json", key="5yr"),
-    "spw": round((y == 0).sum() / (y == 1).sum(), 2), "n_splits": 10, "n_repeats": 5, "n_bins": 10,
+    "spw": round((y == 0).sum() / (y == 1).sum(), 2), "n_splits": 10, "n_repeats": 5, "n_bins": 5,
 })
 
 # ESRD 10-Year
@@ -201,7 +240,7 @@ cohorts.append({
     "label": "ESRD 10-Year",
     "X": df.drop(columns=["esrd_10yr"]), "y": y,
     "best_params": load_json_params(f"{OUT}/esrd/esrd_best_params.json", key="10yr"),
-    "spw": round((y == 0).sum() / (y == 1).sum(), 2), "n_splits": 10, "n_repeats": 5, "n_bins": 10,
+    "spw": round((y == 0).sum() / (y == 1).sum(), 2), "n_splits": 10, "n_repeats": 5, "n_bins": 5,
 })
 
 # --- Compute ---
@@ -215,7 +254,7 @@ for c in cohorts:
     models = build_models(c["best_params"], c["spw"])
     res = get_oof_and_roc(c["X"], c["y"], models, c["n_splits"], c["n_repeats"])
     for name in models:
-        print(f"    {name:<20} CV AUROC={res[name]['cv_auroc']:.3f}")
+        print(f"    {name:<20} OOF AUROC={res[name]['auroc']:.3f}")
     all_results.append(res)
 
     y_arr = c["y"].values
@@ -223,15 +262,13 @@ for c in cohorts:
         r = res[name]
         for fpr_v, tpr_v in zip(r["fpr"], r["tpr"]):
             roc_rows.append({"Cohort": c["label"], "Model": name, "FPR": fpr_v, "TPR": tpr_v,
-                              "CV_AUROC": round(r["cv_auroc"], 4)})
+                              "OOF_AUROC": round(r["auroc"], 4)})
 
-        try:
-            frac_pos, mean_pred = calibration_curve(c["y"], r["oof"], n_bins=c["n_bins"], strategy="quantile")
-        except ValueError:
-            frac_pos, mean_pred = calibration_curve(c["y"], r["oof"], n_bins=max(3, c["n_bins"] // 2), strategy="quantile")
-        for mp, fp in zip(mean_pred, frac_pos):
+        mean_pred, obs_rate, ci_lo, ci_hi = calibration_bins_with_ci(c["y"], r["oof"], c["n_bins"])
+        for mp, orate, lo, hi in zip(mean_pred, obs_rate, ci_lo, ci_hi):
             cal_rows.append({"Cohort": c["label"], "Model": name,
-                              "Mean_Predicted_Probability": mp, "Observed_Event_Rate": fp})
+                              "Mean_Predicted_Probability": mp, "Observed_Event_Rate": orate,
+                              "Wilson_CI_Lower": lo, "Wilson_CI_Upper": hi})
 
         for idx, (true_label, prob) in enumerate(zip(y_arr, r["oof"])):
             oof_rows.append({"Cohort": c["label"], "Model": name, "Sample_Index": idx,
@@ -243,16 +280,16 @@ with pd.ExcelWriter(curve_data_path, engine="openpyxl") as writer:
     pd.DataFrame(cal_rows).to_excel(writer, sheet_name="Calibration_curves", index=False)
     pd.DataFrame(oof_rows).to_excel(writer, sheet_name="OOF_predictions", index=False)
 print(f"\nSaved: {curve_data_path}")
-print("  ROC_curves: full-data-fit FPR/TPR points per model per cohort (matches plotted curves)")
-print("  Calibration_curves: decile-binned mean predicted prob vs observed event rate")
+print("  ROC_curves: pooled-OOF FPR/TPR points per model per cohort (matches plotted curves)")
+print("  Calibration_curves: equal-frequency binned mean predicted prob vs observed event rate, with Wilson 95% CI")
 print("  OOF_predictions: raw out-of-fold probability + true label per sample, per model per cohort")
 print("  (for full flexibility if you want to build your own curves/thresholds)")
 
 # TabPFN v3: reference curves, wherever raw OOF predictions were retained
 # (src/16_tabpfn_v3_benchmark.py). Excluded from DeLong's test and Harrell
 # bootstrap (see Methods Section 10.1), so it is drawn distinctly (dashed,
-# grey) rather than as a normal competitor, with its own legend entry
-# labelled as a reference rather than a fifth model in the comparison.
+# grey) rather than as a normal competitor. Uses the same pooled-OOF AUROC
+# convention as the other four models on this figure.
 TABPFN_COLOR = "0.45"
 TABPFN_COHORT_KEY = {
     "1-Year Flare": "1yr_flare", "5-Year Flare": "5yr_flare", "Serial Biopsy": "serial_biopsy",
@@ -270,13 +307,11 @@ try:
         fpr_t, tpr_t, _ = roc_curve(y_true, probs)
         auroc_t = roc_auc_score(y_true, probs)
         n_bins = next(c["n_bins"] for c in cohorts if c["label"] == label)
-        try:
-            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=n_bins, strategy="quantile")
-        except ValueError:
-            frac_pos_t, mean_pred_t = calibration_curve(y_true, probs, n_bins=max(3, n_bins // 2), strategy="quantile")
+        mean_pred_t, frac_pos_t, ci_lo_t, ci_hi_t = calibration_bins_with_ci(y_true, probs, n_bins)
         tabpfn_curves[label] = {"fpr": fpr_t, "tpr": tpr_t, "auroc": auroc_t,
-                                 "mean_pred": mean_pred_t, "frac_pos": frac_pos_t}
-        print(f"\n[TabPFN v3 reference] {label}: AUROC={auroc_t:.3f} (OOF, from live run)")
+                                 "mean_pred": mean_pred_t, "frac_pos": frac_pos_t,
+                                 "ci_lo": ci_lo_t, "ci_hi": ci_hi_t}
+        print(f"\n[TabPFN v3 reference] {label}: OOF AUROC={auroc_t:.3f}")
 except FileNotFoundError:
     print("\n[TabPFN v3 reference] outputs/tabpfn_v3_oof_predictions.xlsx not found - skipping.")
 
@@ -300,7 +335,7 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
     for name in MODEL_ORDER:
         r = res[name]
         ax.plot(r["fpr"], r["tpr"], color=MODEL_COLORS[name], lw=1.8)
-        annot_lines.append(f"{name}: {r['cv_auroc']:.3f}")
+        annot_lines.append(f"{name}: {r['auroc']:.3f}")
 
     # The only significant DeLong pairwise result across all 5 cohorts (src/13_delong_test.py):
     # Random Forest significantly outperformed LightGBM here (p=0.001 raw, p=0.006 Holm-corrected).
@@ -310,7 +345,7 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
     tp = tabpfn_curves.get(c["label"])
     if tp is not None:
         ax.plot(tp["fpr"], tp["tpr"], color=TABPFN_COLOR, lw=1.6, linestyle="--")
-        annot_lines.append(f"TabPFN v3 (OOF): {tp['auroc']:.3f} (ref.)†")
+        annot_lines.append(f"TabPFN v3: {tp['auroc']:.3f}")
 
     ax.text(0.97, 0.03, "\n".join(annot_lines), transform=ax.transAxes,
             fontsize=10.5, va="bottom", ha="right",
@@ -334,15 +369,8 @@ legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5) for nam
 legend_labels = list(MODEL_ORDER)
 if tabpfn_curves:
     legend_handles.append(plt.Line2D([0], [0], color=TABPFN_COLOR, lw=1.6, linestyle="--"))
-    legend_labels.append("TabPFN v3 (reference)")
+    legend_labels.append("TabPFN v3")
 legend_ax.legend(legend_handles, legend_labels, loc="center", fontsize=14, frameon=False)
-
-if tabpfn_curves:
-    fig_roc.text(0.5, -0.02, "†TabPFN v3 (dashed grey): reference point from pooled out-of-fold "
-                 "predictions, not the fold-mean 'CV AUROC' convention used for the other four models "
-                 "(so values differ slightly from those reported in Methods/Results) - excluded from "
-                 "DeLong's test and Harrell bootstrap correction.",
-                 ha="center", fontsize=8, style="italic", color="0.4")
 
 fig_roc.savefig(f"{FIG_DIR}/roc_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_roc)
@@ -359,24 +387,26 @@ for i, (c, res) in enumerate(zip(cohorts, all_results)):
 
     for name in MODEL_ORDER:
         oof = res[name]["oof"]
-        try:
-            frac_pos, mean_pred = calibration_curve(c["y"], oof, n_bins=c["n_bins"], strategy="quantile")
-        except ValueError:
-            frac_pos, mean_pred = calibration_curve(c["y"], oof, n_bins=max(3, c["n_bins"] // 2), strategy="quantile")
-        ax.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=1.8, markersize=4)
+        mean_pred, obs_rate, ci_lo, ci_hi = calibration_bins_with_ci(c["y"], oof, c["n_bins"])
+        yerr = [obs_rate - ci_lo, ci_hi - obs_rate]
+        ax.errorbar(mean_pred, obs_rate, yerr=yerr, fmt="o-", color=MODEL_COLORS[name],
+                    lw=1.8, markersize=4, capsize=3, elinewidth=1, ecolor=MODEL_COLORS[name])
 
     tp = tabpfn_curves.get(c["label"])
     if tp is not None:
-        ax.plot(tp["mean_pred"], tp["frac_pos"], "^--", color=TABPFN_COLOR, lw=1.6, markersize=5)
-        ax.text(0.03, 0.97, f"TabPFN v3 (OOF): {tp['auroc']:.3f} (ref.)†", transform=ax.transAxes,
-                fontsize=9, va="top", ha="left", color=TABPFN_COLOR, style="italic")
+        yerr_t = [tp["frac_pos"] - tp["ci_lo"], tp["ci_hi"] - tp["frac_pos"]]
+        ax.errorbar(tp["mean_pred"], tp["frac_pos"], yerr=yerr_t, fmt="^--", color=TABPFN_COLOR,
+                    lw=1.6, markersize=5, capsize=3, elinewidth=1, ecolor=TABPFN_COLOR)
+        # No text annotation here (unlike the ROC panel): AUROC is a
+        # discrimination metric, not a calibration one, so it doesn't
+        # belong on this plot. The curve + shared legend entry are enough,
+        # consistent with how the other four models are shown here.
 
     ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
     ax.set_title(f"{PANEL_LETTERS[i]}. {c['label']}", fontsize=16, fontweight="bold", loc="left")
     ax.set_xlabel("Mean Predicted Probability", fontsize=13)
-    if col == 0:
-        ax.set_ylabel("Observed Event Rate", fontsize=13)
-    else:
+    ax.set_ylabel("Observed Event Rate", fontsize=13)
+    if col != 0:
         ax.set_yticklabels([])
     ax.tick_params(labelsize=8)
 
@@ -389,15 +419,8 @@ legend_handles = [plt.Line2D([0], [0], color=MODEL_COLORS[name], lw=2.5, marker=
 legend_labels = list(MODEL_ORDER)
 if tabpfn_curves:
     legend_handles.append(plt.Line2D([0], [0], color=TABPFN_COLOR, lw=1.6, linestyle="--", marker="^"))
-    legend_labels.append("TabPFN v3 (reference)")
+    legend_labels.append("TabPFN v3")
 legend_ax.legend(legend_handles, legend_labels, loc="center", fontsize=14, frameon=False)
-
-if tabpfn_curves:
-    fig_cal.text(0.5, -0.02, "†TabPFN v3 (dashed grey): reference point from pooled out-of-fold "
-                 "predictions, not the fold-mean 'CV AUROC' convention used for the other four models "
-                 "(so values differ slightly from those reported in Methods/Results) - excluded from "
-                 "DeLong's test and Harrell bootstrap correction.",
-                 ha="center", fontsize=8, style="italic", color="0.4")
 
 fig_cal.savefig(f"{FIG_DIR}/calibration_all_cohorts.png", dpi=300, bbox_inches="tight")
 plt.close(fig_cal)
