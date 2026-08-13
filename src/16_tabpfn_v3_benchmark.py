@@ -14,14 +14,15 @@ Robustness: 5 retry attempts per fold, 15s sleep on failure, 3s pause
             between every fold.
 
 Checkpoint resume: cohorts already marked "done" in the checkpoint are
-skipped entirely (no re-billed API calls) - so adding serial biopsy here
-only spends usage on the new cohort, not the 4 already completed.
+skipped entirely (no re-billed API calls) - so a rerun only spends usage
+on cohorts not yet completed with the current script version.
 
 OOF predictions: retained (per-sample, mapped back to original row order)
 so ROC/calibration curves can be built for TabPFN v3, not just aggregate
-metrics - this was missing for the first 4 cohorts (checkpoint only kept
-aggregate fold metrics), so only the serial biopsy sheet has curve-ready
-data (see outputs/tabpfn_v3_oof_predictions.xlsx).
+metrics (see outputs/tabpfn_v3_oof_predictions.xlsx). All 5 cohorts now
+have this - it was added after the first 4 cohorts' initial run (which
+only kept aggregate fold metrics), then backfilled by clearing those 4
+checkpoint entries and rerunning with OOF retention.
 """
 
 import time, warnings, os, pickle
