@@ -171,6 +171,22 @@ def apply_three_line_borders(table, header_row, last_row, n_cols):
         set_cell_borders(table.cell(last_row, c), bottom=THICK)
 
 
+def prevent_page_breaks(table):
+    """No native python-docx attribute for this (Row has no
+    allow_break_across_pages property) - sets the underlying OOXML directly:
+    <w:cantSplit/> on every row so a row can't split across a page break,
+    and keep_with_next on every paragraph in every row except the last so
+    Word doesn't insert a page break between rows either."""
+    rows = table.rows
+    for row in rows:
+        trPr = row._tr.get_or_add_trPr()
+        trPr.append(OxmlElement('w:cantSplit'))
+    for row in rows[:-1]:
+        for cell in row.cells:
+            for p in cell.paragraphs:
+                p.paragraph_format.keep_with_next = True
+
+
 def add_footnote(doc, text, space_after=Pt(18)):
     p = doc.add_paragraph()
     run = p.add_run(text)
@@ -202,6 +218,7 @@ title = doc.add_paragraph()
 run = title.add_run("Table 1. Model performance by cohort: discrimination, Brier score, and calibration slope")
 set_run_font(run, size=11, bold=True)
 title.paragraph_format.space_after = Pt(8)
+title.paragraph_format.keep_with_next = True
 
 PANEL_ROWS = 1 + len(MODELS) + 1  # label row + 4 models + TabPFN
 n_rows = 2 + 3 * PANEL_ROWS       # 2 header rows + 3 panels
@@ -211,7 +228,14 @@ table.alignment = WD_TABLE_ALIGNMENT.CENTER
 table.autofit = False
 set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5)
 
-col_widths = [4.4] + [3.6] * N
+col_widths = [3.8] + [2.62] * N
+# Both are needed: table.columns[i].width sets the tblGrid (what determines
+# layout for cells that don't override it); per-cell .width sets each
+# cell's own tcW. Setting only one or the other silently fails to render
+# the intended widths in Word (verified empirically - cell-only left every
+# column at a uniform default width).
+for i, w in enumerate(col_widths):
+    table.columns[i].width = Cm(w)
 for row in table.rows:
     for cell, w in zip(row.cells, col_widths):
         cell.width = Cm(w)
@@ -242,13 +266,13 @@ for c, name in enumerate(COHORTS, start=1):
 def fill_panel(start_row, label, cell_fn):
     """label row (merged across all columns) + 4 model rows + TabPFN row."""
     label_row = table.cell(start_row, 0).merge(table.cell(start_row, N_COLS - 1))
-    set_cell_lines(label_row, [(label, 11, True, False)], align=WD_ALIGN_PARAGRAPH.LEFT, space_before=Pt(6))
+    set_cell_lines(label_row, [(label, 11, True, False)], align=WD_ALIGN_PARAGRAPH.LEFT, space_before=Pt(3))
     for r, model in enumerate(MODELS, start=start_row + 1):
         set_cell_lines(table.cell(r, 0), [(model, 11, False, False)], align=WD_ALIGN_PARAGRAPH.LEFT)
         for c in range(N):
             cell_fn(table.cell(r, c + 1), model, c, italic=False)
     tabpfn_row = start_row + 1 + len(MODELS)
-    set_cell_lines(table.cell(tabpfn_row, 0), [("TabPFN v3 (Prior Labs)", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
+    set_cell_lines(table.cell(tabpfn_row, 0), [("TabPFN v3", 10.5, False, True)], align=WD_ALIGN_PARAGRAPH.LEFT)
     for c in range(N):
         cell_fn(table.cell(tabpfn_row, c + 1), None, c, italic=True)
     return tabpfn_row
@@ -281,6 +305,7 @@ row = fill_panel(row, "(b) Brier Score", brier_cell) + 1
 last_row = fill_panel(row, "(c) Calibration Slope", cal_cell)
 
 apply_three_line_borders(table, header_row=1, last_row=last_row, n_cols=N_COLS)
+prevent_page_breaks(table)
 
 add_footnote(doc, TABPFN_FOOTNOTE)
 add_footnote(doc, SERIAL_FOOTNOTE)
