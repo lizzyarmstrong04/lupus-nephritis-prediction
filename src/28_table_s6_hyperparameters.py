@@ -12,8 +12,10 @@ hyperparameter search.
 
 Random Forest, XGBoost and LightGBM have different hyperparameter sets, so
 one shared table would be mostly blank cells - instead three compact
-sub-tables (one per model, cohort rows), matching the established style
-(full grid, Times New Roman) used in the appendix's other tables.
+sub-tables (one per model, cohort rows). Each sub-table uses the three-line
+rule style (rule above header, below header, at foot; no vertical rules,
+no grid) matching the main-manuscript Table 1/2 convention
+(src/25_tables_1_2.py), Times New Roman.
 
 Saves: outputs/Table_S6_Hyperparameters.docx
 """
@@ -99,6 +101,63 @@ for label, params in MODEL_SPECS.items():
         print(f"  {cohort:<16} " + "  ".join(f"{p}={v}" for p, v in zip(params, vals)))
 
 
+def set_cell_borders(cell, top=None, bottom=None, left=None, right=None, insideH=None, insideV=None):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcBorders = tcPr.find(qn('w:tcBorders'))
+    if tcBorders is None:
+        tcBorders = OxmlElement('w:tcBorders')
+        tcPr.append(tcBorders)
+    specs = {"top": top, "bottom": bottom, "left": left, "right": right,
+             "insideH": insideH, "insideV": insideV}
+    for edge, spec in specs.items():
+        el = tcBorders.find(qn(f'w:{edge}'))
+        if el is None:
+            el = OxmlElement(f'w:{edge}')
+            tcBorders.append(el)
+        if spec is None:
+            el.set(qn('w:val'), 'nil')
+        else:
+            el.set(qn('w:val'), 'single')
+            el.set(qn('w:sz'), str(spec))
+            el.set(qn('w:color'), '000000')
+            el.set(qn('w:space'), '0')
+
+
+def clear_all_borders(cell):
+    set_cell_borders(cell)
+
+
+def apply_three_line_borders(table, header_row, last_row, n_cols):
+    THICK, THIN = 18, 8
+    # When header_row == 0, the top-rule and header-bottom-rule cells are the
+    # SAME cell - set_cell_borders() rebuilds all 6 edges every call, so two
+    # separate calls would let the second silently overwrite the first's top
+    # edge back to nil. Combine into one call whenever they coincide (caught
+    # via docx readback verification: row-0 top was rendering as 'nil').
+    if header_row == 0:
+        for c in range(n_cols):
+            set_cell_borders(table.cell(0, c), top=THICK, bottom=THIN)
+    else:
+        for c in range(n_cols):
+            set_cell_borders(table.cell(0, c), top=THICK)
+        for c in range(n_cols):
+            set_cell_borders(table.cell(header_row, c), bottom=THIN)
+    for c in range(n_cols):
+        set_cell_borders(table.cell(last_row, c), bottom=THICK)
+
+
+def set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5):
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    cellMar = OxmlElement('w:tblCellMar')
+    for edge, pt_val in (('top', top_pt), ('bottom', bottom_pt), ('left', left_pt), ('right', right_pt)):
+        node = OxmlElement(f'w:{edge}')
+        node.set(qn('w:w'), str(int(pt_val * 20)))
+        node.set(qn('w:type'), 'dxa')
+        cellMar.append(node)
+    tblPr.append(cellMar)
+
+
 def set_run_font(run, size=10, bold=False, italic=False):
     run.font.name = FONT
     run.font.size = Pt(size)
@@ -116,6 +175,8 @@ def set_run_font(run, size=10, bold=False, italic=False):
 def set_cell(cell, text, size=9.5, bold=False, italic=False, align=WD_ALIGN_PARAGRAPH.CENTER):
     cell.text = ""
     p = cell.paragraphs[0]
+    for r in list(p.runs):  # cell.text = "" can leave a stray unformatted empty run
+        r._element.getparent().remove(r._element)
     p.alignment = align
     run = p.add_run(text)
     set_run_font(run, size=size, bold=bold, italic=italic)
@@ -151,10 +212,12 @@ for label, params in MODEL_SPECS.items():
     sub.paragraph_format.space_after = Pt(4)
 
     headers = ["Cohort"] + [PARAM_LABELS[p] for p in params]
-    table = doc.add_table(rows=1 + len(COHORTS), cols=len(headers))
+    n_rows = 1 + len(COHORTS)
+    table = doc.add_table(rows=n_rows, cols=len(headers))
     table.style = "Table Grid"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
+    set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5)
 
     col_widths = [3.0] + [2.3] * len(params)
     for i, w in enumerate(col_widths):
@@ -170,6 +233,11 @@ for label, params in MODEL_SPECS.items():
         set_cell(table.cell(r, 0), cohort, align=WD_ALIGN_PARAGRAPH.LEFT)
         for c, param in enumerate(params, start=1):
             set_cell(table.cell(r, c), get(model_name, cohort, param))
+
+    for row in table.rows:
+        for cell in row.cells:
+            clear_all_borders(cell)
+    apply_three_line_borders(table, header_row=0, last_row=n_rows - 1, n_cols=len(headers))
 
 doc.save(OUTPUT)
 print(f"\nSaved: {OUTPUT}")

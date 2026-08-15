@@ -3,10 +3,10 @@ Table S5 (Appendix): Post hoc formal minimum sample-size justification by
 cohort (Riley et al. 2020, BMJ 368:m441), read directly from
 outputs/pmsampsize_results.xlsx (src/22_pmsampsize.py) - not retyped.
 
-Landscape (11 data columns), full grid style matching the appendix's
-existing S1/S2/S4 tables (not the three-line style used for the main
-Table 1), Times New Roman. "Adequate?" bolded per row so the flare-vs-ESRD
-split is visible at a glance.
+Landscape (11 data columns). Three-line rule style (rule above header, below
+header, at foot; no vertical rules, no grid) matching the main-manuscript
+Table 1/2 convention (src/25_tables_1_2.py), Times New Roman. "Adequate?"
+bolded per row so the flare-vs-ESRD split is visible at a glance.
 
 Saves: outputs/Table_S5_SampleSize.docx
 """
@@ -28,6 +28,63 @@ df = pd.read_excel(f"{OUT}/pmsampsize_results.xlsx")
 print(df.to_string(index=False))
 
 
+def set_cell_borders(cell, top=None, bottom=None, left=None, right=None, insideH=None, insideV=None):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcBorders = tcPr.find(qn('w:tcBorders'))
+    if tcBorders is None:
+        tcBorders = OxmlElement('w:tcBorders')
+        tcPr.append(tcBorders)
+    specs = {"top": top, "bottom": bottom, "left": left, "right": right,
+             "insideH": insideH, "insideV": insideV}
+    for edge, spec in specs.items():
+        el = tcBorders.find(qn(f'w:{edge}'))
+        if el is None:
+            el = OxmlElement(f'w:{edge}')
+            tcBorders.append(el)
+        if spec is None:
+            el.set(qn('w:val'), 'nil')
+        else:
+            el.set(qn('w:val'), 'single')
+            el.set(qn('w:sz'), str(spec))
+            el.set(qn('w:color'), '000000')
+            el.set(qn('w:space'), '0')
+
+
+def clear_all_borders(cell):
+    set_cell_borders(cell)
+
+
+def apply_three_line_borders(table, header_row, last_row, n_cols):
+    THICK, THIN = 18, 8
+    # When header_row == 0, the top-rule and header-bottom-rule cells are the
+    # SAME cell - set_cell_borders() rebuilds all 6 edges every call, so two
+    # separate calls would let the second silently overwrite the first's top
+    # edge back to nil. Combine into one call whenever they coincide (caught
+    # via docx readback verification: row-0 top was rendering as 'nil').
+    if header_row == 0:
+        for c in range(n_cols):
+            set_cell_borders(table.cell(0, c), top=THICK, bottom=THIN)
+    else:
+        for c in range(n_cols):
+            set_cell_borders(table.cell(0, c), top=THICK)
+        for c in range(n_cols):
+            set_cell_borders(table.cell(header_row, c), bottom=THIN)
+    for c in range(n_cols):
+        set_cell_borders(table.cell(last_row, c), bottom=THICK)
+
+
+def set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5):
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    cellMar = OxmlElement('w:tblCellMar')
+    for edge, pt_val in (('top', top_pt), ('bottom', bottom_pt), ('left', left_pt), ('right', right_pt)):
+        node = OxmlElement(f'w:{edge}')
+        node.set(qn('w:w'), str(int(pt_val * 20)))
+        node.set(qn('w:type'), 'dxa')
+        cellMar.append(node)
+    tblPr.append(cellMar)
+
+
 def set_run_font(run, size=10, bold=False, italic=False):
     run.font.name = FONT
     run.font.size = Pt(size)
@@ -45,6 +102,8 @@ def set_run_font(run, size=10, bold=False, italic=False):
 def set_cell(cell, text, size=10, bold=False, italic=False, align=WD_ALIGN_PARAGRAPH.CENTER):
     cell.text = ""
     p = cell.paragraphs[0]
+    for r in list(p.runs):  # cell.text = "" can leave a stray unformatted empty run
+        r._element.getparent().remove(r._element)
     p.alignment = align
     run = p.add_run(text)
     set_run_font(run, size=size, bold=bold, italic=italic)
@@ -69,10 +128,12 @@ headers = ["Cohort", "p", "Prevalence", "C-stat\n(LR, BC)", "Cox-Snell\nR²", "n
            "Events\nReq.", "EPP\nReq.", "n\nActual", "Events\nActual", "EPV\nActual", "Adequate?"]
 col_widths = [2.6, 1.6, 1.7, 2.1, 1.7, 1.7, 1.8, 1.7, 1.7, 1.8, 1.7, 1.8]
 
-table = doc.add_table(rows=1 + len(df), cols=len(headers))
+n_rows = 1 + len(df)
+table = doc.add_table(rows=n_rows, cols=len(headers))
 table.style = "Table Grid"
 table.alignment = WD_TABLE_ALIGNMENT.CENTER
 table.autofit = False
+set_table_cell_margins(table, top_pt=3, bottom_pt=3, left_pt=5, right_pt=5)
 
 for i, w in enumerate(col_widths):
     table.columns[i].width = Cm(w)
@@ -97,6 +158,11 @@ for r, row in enumerate(df.itertuples(index=False), start=1):
     set_cell(table.cell(r, 9), str(row._9))                          # Events actual
     set_cell(table.cell(r, 10), f"{row._10:.2f}")                    # EPV actual
     set_cell(table.cell(r, 11), adequate, bold=True)                 # Adequate?
+
+for row in table.rows:
+    for cell in row.cells:
+        clear_all_borders(cell)
+apply_three_line_borders(table, header_row=0, last_row=n_rows - 1, n_cols=len(headers))
 
 footnote = doc.add_paragraph()
 run = footnote.add_run(
