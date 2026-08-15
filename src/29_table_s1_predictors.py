@@ -209,9 +209,9 @@ def apply_three_line_borders(table, n_header_rows=1):
             for edge in ("top", "bottom", "left", "right"):
                 set_cell_border(cell, edge, val="nil", size=0)
     for c in range(n_cols):
-        set_cell_border(table.cell(0, c), "top", size=12)
+        set_cell_border(table.cell(0, c), "top", size=18)   # matches THICK=18 used everywhere else (src/25_tables_1_2.py)
         set_cell_border(table.cell(header_row_idx, c), "bottom", size=8)
-        set_cell_border(table.cell(last_row_idx, c), "bottom", size=12)
+        set_cell_border(table.cell(last_row_idx, c), "bottom", size=18)
 
 
 # ---------------------------------------------------------------------------
