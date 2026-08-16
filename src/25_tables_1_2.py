@@ -7,17 +7,27 @@ ONE header block (Model / Flare Cohorts [1-Year, 5-Year, Serial Biopsy] /
 Kidney Failure (ESRD) Cohorts [5-Year, 10-Year]), followed by three stacked
 panels sharing it - no repeated header, no repeated "Brier"/"Cal" text in
 every cell (the metric is named once in each panel's own label row instead):
-  (a) Discrimination - AUROC (95% CI)   [bold = highest in column]
-  (b) Brier Score                       [bold = lowest in column]
-  (c) Calibration Slope                 [bold = closest to 1.0 in column]
+  (a) Discrimination - Bias-Corrected AUROC (95% CI)   [bold = highest in column]
+  (b) Brier Score                                      [bold = lowest in column]
+  (c) Calibration Slope                                [bold = closest to 1.0 in column]
+
+Panel (a) uses the Harrell bootstrap bias-corrected (BC) AUROC (with a
+percentile 95% CI from the per-iteration bootstrap values), not CV AUROC -
+BC AUROC is the paper's designated primary metric (Table S5's footnote,
+TRIPOD guidance on optimism-corrected discrimination). See
+src/33_bc_auroc_ci.py for the recomputation (the original per-cohort
+scripts only saved the mean BC AUROC, no CI).
 
 Each panel repeats the Model row labels (Logistic Regression, Random Forest,
 XGBoost, LightGBM, then TabPFN v3 in italics - excluded from all bold
-comparisons, not run through DeLong's test or Harrell bootstrap). Serial
-Biopsy's TabPFN v3 AUROC uses the fold-mean 'CV AUROC' convention (0.626),
-matching every other cell here - NOT the 0.588 pooled-OOF value used in the
-ROC/calibration figures (src/16_roc_calibration_plots.py), a different
-aggregation of the same underlying predictions.
+comparisons, not run through DeLong's test or Harrell bootstrap; TabPFN's
+API-hosted nature makes a 1000-iteration bootstrap infeasible, so its AUROC
+is CV AUROC, NOT the same bias-corrected convention as the other four rows
+in panel (a) - flagged explicitly in the TabPFN footnote below). Serial
+Biopsy's TabPFN v3 AUROC uses the fold-mean 'CV AUROC' convention (0.626) -
+NOT the 0.588 pooled-OOF value used in the ROC/calibration figures
+(src/16_roc_calibration_plots.py), a different aggregation of the same
+underlying predictions.
 
 One combined footnote block: TabPFN v3 exclusion note, and a serial-biopsy
 caveat covering both the wide CIs (panel a) and degenerate calibration
@@ -46,11 +56,22 @@ N = len(COHORTS)
 N_COLS = 1 + N
 
 # --- Data: (auroc, ci_lower, ci_upper) / (brier, cal_slope) ---
+# AUROC = Harrell bootstrap bias-corrected (BC) AUROC, not CV AUROC (switched
+# from CV to BC - the paper's designated primary metric, per Table S5's
+# footnote and TRIPOD reporting guidance). Values + 95% CI read from
+# outputs/bc_auroc_ci.xlsx (src/33_bc_auroc_ci.py), which re-ran the Harrell
+# bootstrap keeping per-iteration values for a percentile CI (the original
+# per-cohort modelling scripts only kept the mean, so no CI existed before).
+# 18/20 model x cohort combinations reproduced the already-published BC
+# AUROC point estimate exactly; 5-Year Flare's Random Forest and XGBoost
+# differed by <=0.005 (library-version drift since the original run, not a
+# bug - see src/33_bc_auroc_ci.py's docstring) and the freshly-recomputed
+# values are used here since they're paired with this table's own CI.
 AUROC_DATA = {
-    "Logistic Regression": [(0.708, 0.553, 0.858), (0.673, 0.536, 0.788), (0.676, 0.434, 0.873), (0.797, 0.669, 0.904), (0.811, 0.656, 0.903)],
-    "Random Forest":       [(0.690, 0.549, 0.834), (0.679, 0.505, 0.809), (0.588, 0.318, 0.824), (0.787, 0.623, 0.898), (0.817, 0.710, 0.931)],
-    "XGBoost":              [(0.674, 0.544, 0.837), (0.673, 0.479, 0.811), (0.648, 0.453, 0.818), (0.792, 0.631, 0.901), (0.821, 0.696, 0.933)],
-    "LightGBM":             [(0.659, 0.532, 0.818), (0.678, 0.518, 0.792), (0.631, 0.443, 0.855), (0.797, 0.653, 0.923), (0.809, 0.701, 0.926)],
+    "Logistic Regression": [(0.709, 0.660, 0.760), (0.670, 0.620, 0.724), (0.660, 0.549, 0.770), (0.797, 0.754, 0.837), (0.817, 0.782, 0.853)],
+    "Random Forest":       [(0.730, 0.692, 0.766), (0.725, 0.694, 0.754), (0.656, 0.573, 0.730), (0.803, 0.770, 0.837), (0.897, 0.878, 0.915)],
+    "XGBoost":              [(0.704, 0.667, 0.741), (0.680, 0.641, 0.718), (0.617, 0.515, 0.712), (0.800, 0.765, 0.834), (0.849, 0.826, 0.872)],
+    "LightGBM":             [(0.710, 0.670, 0.747), (0.737, 0.703, 0.769), (0.594, 0.490, 0.689), (0.808, 0.774, 0.841), (0.926, 0.904, 0.945)],
 }
 AUROC_TABPFN = [(0.684, 0.567, 0.834), (0.671, 0.508, 0.815), (0.626, 0.352, 0.841), (0.796, 0.621, 0.898), (0.817, 0.710, 0.926)]
 
@@ -197,7 +218,11 @@ def add_footnote(doc, text, space_after=Pt(18)):
 
 
 TABPFN_FOOTNOTE = ("TabPFN v3 shown in italics for reference throughout; not included in formal "
-                    "pairwise significance testing (DeLong's test) or bootstrap correction.")
+                    "pairwise significance testing (DeLong's test) or bootstrap correction. Panel (a) "
+                    "AUROC for the four main classifiers is Harrell bootstrap bias-corrected; TabPFN v3's "
+                    "1000-iteration bootstrap refitting is infeasible via its hosted API, so its AUROC is "
+                    "the cross-validation (CV) mean instead - not directly comparable to the other four "
+                    "rows on a like-for-like basis.")
 SERIAL_FOOTNOTE = ("Serial Biopsy (all three panels) should be treated as exploratory: n=70 (34 events) "
                     "produces wide confidence intervals in panel (a) and degenerate calibration in "
                     "panels (b)/(c) (e.g. XGBoost's slope of 0.053 reflects near-constant predictions, "
@@ -300,7 +325,7 @@ def cal_cell(cell, model, c, italic):
 
 
 row = 2
-row = fill_panel(row, "(a) Discrimination — AUROC (95% CI)", auroc_cell) + 1
+row = fill_panel(row, "(a) Discrimination — Bias-Corrected AUROC (95% CI)", auroc_cell) + 1
 row = fill_panel(row, "(b) Brier Score", brier_cell) + 1
 last_row = fill_panel(row, "(c) Calibration Slope", cal_cell)
 
