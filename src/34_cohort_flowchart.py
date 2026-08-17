@@ -54,16 +54,16 @@ ax.axis("off")
 fig.patch.set_facecolor("white")
 ax.set_facecolor("white")
 
-MAIN_W, MAIN_H = 25, 13
-EXCL_W, EXCL_H = 23, 13
-GAP = 8          # arrow length between two stacked boxes in the same column
+MAIN_W, MAIN_H = 25, 13.5
+EXCL_W, EXCL_H = 23, 13.5
+GAP = 4          # arrow length between two stacked boxes in the same column
 
 
 def box(cx, cy, w, h, title, subtitle, style, dashed=False, italic=False,
-        title_size=12, sub_size=10.3):
+        title_size=13.5, sub_size=11.5):
     x, y = cx - w / 2, cy - h / 2
     patch = FancyBboxPatch(
-        (x, y), w, h, boxstyle="round,pad=0,rounding_size=0.5",
+        (x, y), w, h, boxstyle="round,pad=0,rounding_size=0.55",  # matches src/32_intro_pathway_figure.py
         linewidth=1.1 if dashed else 1.3, edgecolor=style["edge"], facecolor=style["fill"],
         linestyle=(0, (4, 2)) if dashed else "solid", zorder=3,
     )
@@ -107,7 +107,7 @@ def hline(x1, x2, y, lw=1.3):
     ax.plot([x1, x2], [y, y], color=ARROW_COL, linewidth=lw, zorder=2, solid_capstyle="butt")
 
 
-def t_split(parent_x, parent_bottom, child_xs, child_top, stub=5):
+def t_split(parent_x, parent_bottom, child_xs, child_top, stub=3):
     """Vertical stub down from parent, horizontal bus, vertical arrow into
     each child column - classic CONSORT T-junction, no diagonal lines."""
     bus_y = parent_bottom - stub
@@ -119,7 +119,7 @@ def t_split(parent_x, parent_bottom, child_xs, child_top, stub=5):
 
 def excl(cx, cy, text):
     return box(cx, cy, EXCL_W, EXCL_H, "Excluded", text, EXCL, dashed=True, italic=True,
-               title_size=10, sub_size=9)
+               title_size=11, sub_size=10)
 
 
 def stack_down(prev_bottom):
@@ -139,12 +139,12 @@ y = 128  # running cursor, top of current box
 top, bot = y, y - MAIN_H
 box(X_RAW, y - MAIN_H / 2, 56, MAIN_H, "Raw Dataset",
     "data_lupus.xlsx   —   n = 1,070 biopsy episodes, 207 variables", NEUTRAL,
-    title_size=13.5, sub_size=11)
+    title_size=15, sub_size=12.5)
 
-t_split(X_RAW, bot, [X_ELIG, X_ESRD5, X_ESRD10], bot - 5 - 4)
+t_split(X_RAW, bot, [X_ELIG, X_ESRD5, X_ESRD10], bot - 3 - 1.5)
 
 # ============================== ESRD branch ==============================
-esrd_excl_top = bot - 5 - 4
+esrd_excl_top = bot - 3 - 1.5
 _, ecy = esrd_excl_top, esrd_excl_top - EXCL_H / 2
 esrd5_excl_bot, _ = excl(X_ESRD5, ecy, "n = 274:\nmissing/insufficient\n5-year follow-up")
 esrd10_excl_bot, _ = excl(X_ESRD10, ecy, "n = 274:\nmissing/insufficient\n10-year follow-up")
@@ -160,12 +160,12 @@ elig_top = esrd_excl_top
 elig_cy = elig_top - MAIN_H / 2
 elig_bot = elig_top - MAIN_H
 box(X_ELIG, elig_cy, 40, MAIN_H, "Eligible for Flare-Outcome Analysis", "n = 893", NEUTRAL,
-    title_size=10.8, sub_size=10.3)
+    title_size=12.2, sub_size=11.5)
 excl_note_top, excl_note_cy = elig_top + GAP - GAP, None  # unused placeholder (kept for clarity)
 
-t_split(X_ELIG, elig_bot, [X_1YR, X_5YR], elig_bot - 5 - 4)
+t_split(X_ELIG, elig_bot, [X_1YR, X_5YR], elig_bot - 3 - 1.5)
 
-split_excl_top = elig_bot - 5 - 4
+split_excl_top = elig_bot - 3 - 1.5
 excl_cy = split_excl_top - EXCL_H / 2
 yr1_excl_bot, _ = excl(X_1YR, excl_cy, "n = 463:\ninadequate/unusable\n1-year outcome data")
 yr5_excl_bot, _ = excl(X_5YR, excl_cy, "n = 537:\ninadequate/unusable\n5-year outcome data")
@@ -186,25 +186,25 @@ ser_excl_bot, _ = excl(X_5YR, ser_excl_cy,
 vline(X_5YR, ser_excl_bot, ser_excl_bot - GAP)
 ser_fin_cy = ser_excl_bot - GAP - MAIN_H / 2
 box(X_5YR, ser_fin_cy, 30, MAIN_H, "Serial Biopsy",
-    "n = 70 patients (≥ 2 biopsies)\nEvents = 34 (48.6%)", VIOLET, title_size=12, sub_size=10.3)
+    "n = 70 patients (≥ 2 biopsies)\nEvents = 34 (48.6%)", VIOLET)
 serial_bottom = ser_fin_cy - MAIN_H / 2
 
 # --- Title & footnote ---
-fig.text(0.5, 0.985, "Cohort Construction: Raw Data to Final Analytic Cohorts",
-         ha="center", fontsize=16, fontweight="bold", fontfamily="Times New Roman")
+fig.text(0.5, 0.99, "Cohort Construction: Raw Data to Final Analytic Cohorts",
+         ha="center", fontsize=18, fontweight="bold", fontfamily="Times New Roman")
 
-footnote_y = serial_bottom - 8
+footnote_y = serial_bottom - 4
 ax.text(
     X_RAW, footnote_y,
     "All five cohorts derive from the same raw dataset (data_lupus.xlsx). ESRD outcomes were assessed\n"
     "independently at 5 and 10 years (composite: creatinine doubling, RRT, or death on RRT vs. eGFR>80\n"
     "stable; death alone and sub-threshold eGFR decline treated as competing/ambiguous events, excluded).\n"
     "Serial Biopsy is a sub-cohort of the 5-Year Flare cohort (patients with ≥ 2 biopsies).",
-    ha="center", va="top", fontsize=10.3, color="#3a3a36", linespacing=1.7,
+    ha="center", va="top", fontsize=11.5, color="#3a3a36", linespacing=1.6,
 )
 
 ax.set_xlim(-3, 107)
-ax.set_ylim(footnote_y - 12, 129.5)
+ax.set_ylim(footnote_y - 6, 129.5)
 fig.subplots_adjust(left=0.01, right=0.99, top=0.965, bottom=0.01)
 
 fig.savefig(f"{FIG_DIR}/cohort_flowchart.png", dpi=300, bbox_inches="tight", facecolor="white")
