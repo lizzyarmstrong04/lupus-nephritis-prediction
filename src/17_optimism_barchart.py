@@ -7,6 +7,22 @@ Reads already-computed bootstrap results only (no recomputation) from:
   outputs/5yr_model_results.xlsx           sheet "Bootstrap (Harrell)"
   outputs/5yr_serial_model_results.xlsx    sheet "Bootstrap (Harrell)"
   outputs/esrd/esrd_model_results.xlsx     sheets "5yr Bootstrap" / "10yr Bootstrap"
+  outputs/*_model_results.xlsx             sheet "CV Results" (apparent-bar error bars)
+  outputs/bc_auroc_ci.xlsx                 (bias-corrected-bar error bars, src/33_bc_auroc_ci.py)
+
+Error bars (95% CI):
+  - Apparent bars: 2.5th/97.5th percentile of the fold-level AUROC
+    distribution from the repeated stratified k-fold CV already saved per
+    cohort. NB this is not strictly "the CI of the apparent estimate" -
+    it's the CV fold distribution's CI, plotted at the apparent bar's
+    position for lack of a native apparent-AUROC resampling distribution
+    (apparent is a single full-data fit, no folds/resamples involved) - so
+    it may not look symmetric around the bar top. Clipped at 0 so an
+    interval that doesn't bracket the apparent value can't go negative.
+  - Bias-corrected bars: 2.5th/97.5th percentile of the 1000-iteration
+    Harrell bootstrap's per-iteration bias-corrected AUROC distribution
+    (outputs/bc_auroc_ci.xlsx, src/33_bc_auroc_ci.py) - a real resampling
+    distribution of the bias-corrected estimate itself.
 
 The ESRD workbook uses different column names ("Apparent AUROC" / "Optimism
 AUROC" / "BC AUROC") than the flare/serial workbooks ("Apparent AUROC" /
@@ -65,22 +81,41 @@ def load_bootstrap(path, sheet, apparent_col, bc_col):
     return {row["Model"]: (row[apparent_col], row[bc_col]) for _, row in df.iterrows()}
 
 
+def load_cv_ci(path, sheet):
+    df = pd.read_excel(path, sheet_name=sheet)
+    return {row["Model"]: (row["CV AUROC 95% CI lower"], row["CV AUROC 95% CI upper"])
+            for _, row in df.iterrows()}
+
+
+def load_bc_ci(path):
+    df = pd.read_excel(path)
+    return {(row["Cohort"], row["Model"]): (row["BC_AUROC_CI_lower"], row["BC_AUROC_CI_upper"])
+            for _, row in df.iterrows()}
+
+
+bc_ci = load_bc_ci(f"{OUT}/bc_auroc_ci.xlsx")
+
 cohorts = [
     {"label": "1-Year Flare",
      "data": load_bootstrap(f"{OUT}/1yr_model_results.xlsx", "Bootstrap (Harrell)",
-                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)")},
+                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)"),
+     "cv_ci": load_cv_ci(f"{OUT}/1yr_model_results.xlsx", "CV Results")},
     {"label": "5-Year Flare",
      "data": load_bootstrap(f"{OUT}/5yr_model_results.xlsx", "Bootstrap (Harrell)",
-                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)")},
+                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)"),
+     "cv_ci": load_cv_ci(f"{OUT}/5yr_model_results.xlsx", "CV Results")},
     {"label": "Serial Biopsy",
      "data": load_bootstrap(f"{OUT}/5yr_serial_model_results.xlsx", "Bootstrap (Harrell)",
-                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)")},
+                             "Apparent AUROC", "Bias-Corrected AUROC (Harrell)"),
+     "cv_ci": load_cv_ci(f"{OUT}/5yr_serial_model_results.xlsx", "CV Results")},
     {"label": "ESRD 5-Year",
      "data": load_bootstrap(f"{OUT}/esrd/esrd_model_results.xlsx", "5yr Bootstrap",
-                             "Apparent AUROC", "BC AUROC")},
+                             "Apparent AUROC", "BC AUROC"),
+     "cv_ci": load_cv_ci(f"{OUT}/esrd/esrd_model_results.xlsx", "5yr CV Results")},
     {"label": "ESRD 10-Year",
      "data": load_bootstrap(f"{OUT}/esrd/esrd_model_results.xlsx", "10yr Bootstrap",
-                             "Apparent AUROC", "BC AUROC")},
+                             "Apparent AUROC", "BC AUROC"),
+     "cv_ci": load_cv_ci(f"{OUT}/esrd/esrd_model_results.xlsx", "10yr CV Results")},
 ]
 
 for c in cohorts:
@@ -110,10 +145,23 @@ for i, c in enumerate(cohorts):
     for j, name in enumerate(MODEL_ORDER):
         apparent, bc = c["data"][name]
         base = MODEL_COLORS[name]
+
+        ci_lo, ci_hi = c["cv_ci"][name]
+        app_err = [[max(0, apparent - ci_lo)], [max(0, ci_hi - apparent)]]
         ax.bar(x[j] - bar_w / 2, apparent, width=bar_w, color=lighten(base),
-               edgecolor="0.5", linewidth=0.5, zorder=3)
+               edgecolor="0.5", linewidth=0.5, zorder=3,
+               yerr=app_err, capsize=3.5, ecolor="0.2",
+               error_kw={"elinewidth": 0.9, "zorder": 4})
+
+        bc_pair = bc_ci.get((c["label"], name))
+        bc_err = None
+        if bc_pair:
+            bc_lo, bc_hi = bc_pair
+            bc_err = [[max(0, bc - bc_lo)], [max(0, bc_hi - bc)]]
         ax.bar(x[j] + bar_w / 2, bc, width=bar_w, color=base,
-               edgecolor="0.5", linewidth=0.5, zorder=3)
+               edgecolor="0.5", linewidth=0.5, zorder=3,
+               yerr=bc_err, capsize=3.5, ecolor="0.2",
+               error_kw={"elinewidth": 0.9, "zorder": 4})
 
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_ABBR[m] for m in MODEL_ORDER], rotation=0, fontsize=12)
@@ -142,8 +190,11 @@ legend_handles = [
 ]
 legend_ax.legend(handles=legend_handles, loc="center", fontsize=18, frameon=False)
 
-fig.text(0.5, -0.02, "LR = Logistic Regression; RF = Random Forest; XGB = XGBoost; LGBM = LightGBM",
-         ha="center", fontsize=11, style="italic", color="0.3")
+fig.text(0.5, -0.03,
+         "LR = Logistic Regression; RF = Random Forest; XGB = XGBoost; LGBM = LightGBM.\n"
+         "Error bars: 95% CI - apparent bars from the fold-level CV AUROC distribution; "
+         "bias-corrected bars from the 1000-iteration Harrell bootstrap's percentile distribution.",
+         ha="center", fontsize=10, style="italic", color="0.3")
 
 fig.savefig(f"{FIG_DIR}/optimism_barchart.png", dpi=300, bbox_inches="tight")
 plt.close(fig)
