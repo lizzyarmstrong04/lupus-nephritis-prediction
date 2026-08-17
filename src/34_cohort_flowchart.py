@@ -146,14 +146,11 @@ bot, top = box(X_RAW, y - MAIN_H / 2, 54, MAIN_H, "Raw Dataset",
 t_split(X_RAW, bot, [X_ELIG, X_ESRD5, X_ESRD10], bot - 4)
 branch_top = bot - 4
 
-# ============================== ESRD branch ==============================
-esrd5_next_top = excl_step(X_ESRD5, branch_top, "n = 274 excluded:\nmissing 5 year follow up")
-esrd10_next_top = excl_step(X_ESRD10, branch_top, "n = 274 excluded:\nmissing 10 year follow up")
-esrd_fin_cy = esrd5_next_top - MAIN_H / 2
-box(X_ESRD5, esrd_fin_cy, MAIN_W, MAIN_H, "ESRD 5 Year", "n = 796\nEvents = 112 (14.1%)", RED)
-box(X_ESRD10, esrd_fin_cy, MAIN_W, MAIN_H, "ESRD 10 Year", "n = 796\nEvents = 175 (22.0%)", RED)
-
 # ============================== Flare branch ==============================
+# Drawn first so its geometry sets the shared tier the ESRD branch aligns
+# to below (ESRD has one fewer intermediate box than Flare - without this,
+# ESRD's final boxes end a full tier higher than Flare's, leaving a large
+# lopsided empty gap under them; caught on visual review).
 elig_bot, elig_top = box(X_ELIG, branch_top - MAIN_H / 2, 38, MAIN_H,
                           "Eligible for Flare Analysis", "n = 893", NEUTRAL,
                           title_size=11.5, sub_size=11)
@@ -166,6 +163,19 @@ yr5_next_top = excl_step(X_5YR, flare_split_top, "n = 537 excluded:\ninadequate 
 flare_fin_cy = yr1_next_top - MAIN_H / 2
 _, _ = box(X_1YR, flare_fin_cy, MAIN_W, MAIN_H, "1 Year Flare", "n = 430\nEvents = 99 (23.0%)", BLUE)
 yr5_bot, _ = box(X_5YR, flare_fin_cy, MAIN_W, MAIN_H, "5 Year Flare", "n = 356\nEvents = 166 (46.6%)", BLUE)
+
+# ============================== ESRD branch ==============================
+# Plain connector down to the same tier as the Flare branch's exclusion
+# labels (flare_split_top), so both branches' exclusion labels - and so
+# their final cohort boxes - land on the same row instead of ESRD ending
+# noticeably higher up the page.
+vline(X_ESRD5, branch_top, flare_split_top, arrow_head=False)
+vline(X_ESRD10, branch_top, flare_split_top, arrow_head=False)
+esrd5_next_top = excl_step(X_ESRD5, flare_split_top, "n = 274 excluded:\nmissing 5 year follow up")
+esrd10_next_top = excl_step(X_ESRD10, flare_split_top, "n = 274 excluded:\nmissing 10 year follow up")
+esrd_fin_cy = esrd5_next_top - MAIN_H / 2
+box(X_ESRD5, esrd_fin_cy, MAIN_W, MAIN_H, "ESRD 5 Year", "n = 796\nEvents = 112 (14.1%)", RED)
+box(X_ESRD10, esrd_fin_cy, MAIN_W, MAIN_H, "ESRD 10 Year", "n = 796\nEvents = 175 (22.0%)", RED)
 
 # --- Serial Biopsy sub-branch (from 5 Year Flare) ---
 ser_next_top = excl_step(X_5YR, yr5_bot, "189 of 259 patients excluded:\nonly 1 biopsy available")
@@ -188,7 +198,7 @@ ax.text(
     ha="center", va="top", fontsize=9, color="#3a3a36", linespacing=1.55,
 )
 
-ax.set_xlim(-3, 107)
+ax.set_xlim(-8, 107)
 ax.set_ylim(footnote_y - 8, 78)
 fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.01)
 
