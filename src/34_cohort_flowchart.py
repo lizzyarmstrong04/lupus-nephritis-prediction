@@ -98,12 +98,18 @@ def hline(x1, x2, y, lw=1.2):
     ax.plot([x1, x2], [y, y], color=ARROW_COL, linewidth=lw, zorder=2, solid_capstyle="butt")
 
 
-def t_split(parent_x, parent_bottom, child_xs, child_top, stub=2.2):
+def t_split(parent_x, parent_bottom, child_xs, child_top, stub=2.2, no_arrow_xs=()):
+    """no_arrow_xs: children whose drop is a plain line, not an
+    arrow-tipped one - for a child that continues on to a further
+    connector before actually reaching its next box/label, so only ONE
+    arrowhead ever appears per branch, right where it actually arrives
+    (mismatched arrowhead-mid-line vs. one-arrowhead-at-the-end was the
+    'unclean' look caught on review)."""
     bus_y = parent_bottom - stub
     vline(parent_x, parent_bottom, bus_y, arrow_head=False)
     hline(min(child_xs), max(child_xs), bus_y)
     for cx in child_xs:
-        vline(cx, bus_y, child_top)
+        vline(cx, bus_y, child_top, arrow_head=(cx not in no_arrow_xs))
 
 
 def excl_step(cx, top, text, gap_above=4.5, label_h=8.5, gap_below=4.5):
@@ -143,7 +149,7 @@ bot, top = box(X_RAW, y - MAIN_H / 2, 54, MAIN_H, "Raw Dataset",
                 "n = 1,070 biopsy episodes, 207 variables", NEUTRAL,
                 title_size=13.5, sub_size=11)
 
-t_split(X_RAW, bot, [X_ELIG, X_ESRD5, X_ESRD10], bot - 4)
+t_split(X_RAW, bot, [X_ELIG, X_ESRD5, X_ESRD10], bot - 4, no_arrow_xs=(X_ESRD5, X_ESRD10))
 branch_top = bot - 4
 
 # ============================== Flare branch ==============================
@@ -165,12 +171,17 @@ _, _ = box(X_1YR, flare_fin_cy, MAIN_W, MAIN_H, "1 Year Flare", "n = 430\nEvents
 yr5_bot, _ = box(X_5YR, flare_fin_cy, MAIN_W, MAIN_H, "5 Year Flare", "n = 356\nEvents = 166 (46.6%)", BLUE)
 
 # ============================== ESRD branch ==============================
-# Plain connector down to the same tier as the Flare branch's exclusion
-# labels (flare_split_top), so both branches' exclusion labels - and so
-# their final cohort boxes - land on the same row instead of ESRD ending
-# noticeably higher up the page.
-vline(X_ESRD5, branch_top, flare_split_top, arrow_head=False)
-vline(X_ESRD10, branch_top, flare_split_top, arrow_head=False)
+# Connector down to the same tier as the Flare branch's exclusion labels
+# (flare_split_top), so both branches' exclusion labels - and so their
+# final cohort boxes - land on the same row instead of ESRD ending
+# noticeably higher up the page. Arrowhead lands exactly at flare_split_top,
+# mirroring where the 1-Year/5-Year split arrows land before their own
+# label - previously this was a plain line, but the Raw-split's own
+# T-junction arrowhead (now suppressed via no_arrow_xs above) used to land
+# stranded partway down instead, an inconsistent extra arrowhead the
+# 1-Year/5-Year branches didn't have.
+vline(X_ESRD5, branch_top, flare_split_top)
+vline(X_ESRD10, branch_top, flare_split_top)
 esrd5_next_top = excl_step(X_ESRD5, flare_split_top, "n = 274 excluded:\nmissing 5 year follow up")
 esrd10_next_top = excl_step(X_ESRD10, flare_split_top, "n = 274 excluded:\nmissing 10 year follow up")
 esrd_fin_cy = esrd5_next_top - MAIN_H / 2
