@@ -14,8 +14,10 @@ outputs/delong_pairwise.xlsx
 outputs/multitask_esrd_results.xlsx
 outputs/tabpfn_v3_checkpoint.pkl
 
-# ── Keep publication figures ───────────────────────────────────────────────
-!outputs/figures/
+# ── Outputs: figures and generated Word documents (visualisation/writing
+#    artifacts, not analysis code - kept locally, not on GitHub) ───────────
+outputs/figures/
+outputs/*.docx
 
 # ── Python environment ────────────────────────────────────────────────────
 .venv/
@@ -53,3 +55,28 @@ src/Serial/
 src/esrd/04_esrd_shap_comparison.py
 src/esrd/05_esrd_vs_flare_shap.py
 src/esrd/06_esrd_delong_figure.py
+
+# ── Plotting/visualisation scripts (removed from repo scope 2026-08-19) ────
+src/16_roc_calibration_plots.py
+src/17_optimism_barchart.py
+src/32_intro_pathway_figure.py
+src/34_cohort_flowchart.py
+
+# ── Dissertation-writing / doc-generation scripts (same date) ──────────────
+src/generate_methods_doc.py
+src/generate_results_doc.py
+src/24_table2_calibration.py
+src/25_tables_1_2.py
+src/26_table_s4_delong.py
+src/27_table_s5_samplesize.py
+src/28_table_s6_hyperparameters.py
+src/29_table_s1_predictors.py
+src/30_table_s3_samplesize.py
+src/31_table1_prior_studies.py
+
+# ── Superseded duplicates / out-of-scope analyses (same date) ──────────────
+src/esrd/01_data_prep_esrd.py
+src/19_delong_pairwise.py
+src/16_ensemble.py
+src/21_km_analysis.py
+src/1_year/02_ethnicity_1yr.py
