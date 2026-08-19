@@ -1,8 +1,5 @@
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -11,15 +8,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import (RepeatedStratifiedKFold, StratifiedKFold,
                                      RandomizedSearchCV)
-from sklearn.calibration import calibration_curve
-from sklearn.metrics import roc_auc_score, brier_score_loss, roc_curve
+from sklearn.metrics import roc_auc_score, brier_score_loss
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
 PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUTPUTS_DIR   = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs"
-FIGURES_DIR   = f"{OUTPUTS_DIR}/figures"
 OUTCOME_COL   = "flare_5yr"
 
 # 34 events, 36 non-events — nearly balanced; minimal weighting
@@ -192,13 +187,6 @@ MODELS = {
     ]),
 }
 
-MODEL_COLORS = {
-    "Logistic Regression": "#1f77b4",
-    "Random Forest":       "#ff7f0e",
-    "XGBoost":             "#2ca02c",
-    "LightGBM":            "#d62728",
-}
-
 # 5×5-fold cross-validation (appropriate for n=70)
 
 print("\n" + "="*60)
@@ -255,44 +243,6 @@ for name, pipeline in MODELS.items():
     print(f"Apparent={result['apparent_auroc']:.3f}  "
           f"Optimism={result['optimism_auroc']:.3f}  "
           f"BC={result['bc_auroc']:.3f}")
-
-# Plots
-
-print("\nGenerating plots...")
-fig_roc, ax_roc = plt.subplots(figsize=(7, 6))
-ax_roc.plot([0, 1], [0, 1], "k--", lw=1, alpha=0.5, label="Chance")
-for name, pipeline in MODELS.items():
-    pipeline.fit(X, y)
-    fpr, tpr, _ = roc_curve(y, pipeline.predict_proba(X)[:, 1])
-    cv    = cv_results[name]
-    label = (f"{name}  (CV AUROC={cv['mean_auroc']:.3f} "
-             f"[{cv['ci_lower']:.3f}–{cv['ci_upper']:.3f}])")
-    ax_roc.plot(fpr, tpr, color=MODEL_COLORS[name], lw=2, label=label)
-ax_roc.set_xlabel("1 – Specificity"); ax_roc.set_ylabel("Sensitivity")
-ax_roc.set_title("ROC — 5yr Serial Biopsy Flare\n(tuned models, n=70)")
-ax_roc.legend(loc="lower right", fontsize=8)
-ax_roc.set_xlim([0,1]); ax_roc.set_ylim([0,1])
-plt.tight_layout()
-fig_roc.savefig(f"{FIGURES_DIR}/roc_curves_5yr_serial.png", dpi=200, bbox_inches="tight")
-plt.close(fig_roc)
-print("  Saved: roc_curves_5yr_serial.png")
-
-fig_cal, ax_cal = plt.subplots(figsize=(7, 6))
-ax_cal.plot([0,1],[0,1],"k--",lw=1,alpha=0.5,label="Perfect calibration")
-for name in MODELS:
-    oof   = cv_results[name]["oof_probs"]
-    slope = cv_results[name]["mean_cal_slope"]
-    frac_pos, mean_pred = calibration_curve(y, oof, n_bins=5, strategy="quantile")
-    ax_cal.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=2,
-                markersize=5, label=f"{name}  (slope={slope:.2f})")
-ax_cal.set_xlabel("Mean Predicted Probability"); ax_cal.set_ylabel("Observed Fraction")
-ax_cal.set_title("Calibration — 5yr Serial Biopsy (OOF 5×5-fold)")
-ax_cal.legend(loc="upper left", fontsize=8)
-ax_cal.set_xlim([0,1]); ax_cal.set_ylim([0,1])
-plt.tight_layout()
-fig_cal.savefig(f"{FIGURES_DIR}/calibration_curves_5yr_serial.png", dpi=200, bbox_inches="tight")
-plt.close(fig_cal)
-print("  Saved: calibration_curves_5yr_serial.png")
 
 # Save results
 

@@ -10,9 +10,6 @@ ESRD prediction — same protocol as flare prediction:
 
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 import os, json
@@ -22,16 +19,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import (RepeatedStratifiedKFold, StratifiedKFold,
                                      RandomizedSearchCV)
-from sklearn.metrics import roc_auc_score, brier_score_loss, roc_curve
-from sklearn.calibration import calibration_curve
+from sklearn.metrics import roc_auc_score, brier_score_loss
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
 PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUT_DIR       = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs/esrd"
-FIG_DIR       = f"{OUT_DIR}/figures"
-os.makedirs(FIG_DIR, exist_ok=True)
+os.makedirs(OUT_DIR, exist_ok=True)
 
 # Helpers
 
@@ -232,47 +227,6 @@ def run_models(data_path, outcome_col, horizon_label):
         print(f"      Apparent={r['apparent_auroc']}  Optimism={r['optimism_auroc']}  "
               f"BC={r['bc_auroc']}")
 
-    # ROC curves
-    MODEL_COLORS = {
-        "Logistic Regression": "#2a78d6",
-        "Random Forest":       "#1baf7a",
-        "XGBoost":             "#eda100",
-        "LightGBM":            "#008300",
-    }
-    tag = horizon_label.replace(" ", "_").replace("-", "").lower()
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    ax = axes[0]
-    ax.plot([0,1],[0,1], "k--", lw=1, alpha=0.5, label="Chance")
-    for name, pipeline in MODELS.items():
-        pipeline.fit(X, y)
-        fpr, tpr, _ = roc_curve(y, pipeline.predict_proba(X)[:, 1])
-        cv = cv_results[name]
-        ax.plot(fpr, tpr, color=MODEL_COLORS[name], lw=2,
-                label=f"{name}  (CV AUROC={cv['auroc']:.3f}  BC={boot_results[name]['bc_auroc']:.3f})")
-    ax.set_xlabel("1 – Specificity"); ax.set_ylabel("Sensitivity")
-    ax.set_title(f"ROC — ESRD {horizon_label}", fontsize=12, fontweight="bold")
-    ax.legend(loc="lower right", fontsize=8)
-    ax.set_xlim([0,1]); ax.set_ylim([0,1])
-
-    ax = axes[1]
-    ax.plot([0,1],[0,1], "k--", lw=1, alpha=0.5, label="Perfect")
-    for name in MODELS:
-        oof = cv_results[name]["oof"]
-        slope = cv_results[name]["slope"]
-        frac_pos, mean_pred = calibration_curve(y, oof, n_bins=10, strategy="quantile")
-        ax.plot(mean_pred, frac_pos, "o-", color=MODEL_COLORS[name], lw=2, markersize=5,
-                label=f"{name}  (slope={slope:.2f})")
-    ax.set_xlabel("Mean Predicted Probability"); ax.set_ylabel("Fraction Positive")
-    ax.set_title(f"Calibration — ESRD {horizon_label}", fontsize=12, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=8)
-    ax.set_xlim([0,1]); ax.set_ylim([0,1])
-
-    plt.tight_layout()
-    fig.savefig(f"{FIG_DIR}/esrd_{tag}.png", dpi=180, bbox_inches="tight")
-    plt.close("all")
-    print(f"  Saved: esrd_{tag}.png")
-
     # Collate results
     cv_rows = []
     boot_rows = []
@@ -318,29 +272,4 @@ with open(f"{OUT_DIR}/esrd_best_params.json", "w") as f:
 
 print(f"\nSaved: {OUT_DIR}/esrd_model_results.xlsx")
 print(f"Saved: {OUT_DIR}/esrd_best_params.json")
-
-# Summary comparison figure
-fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for ax, res, horizon in zip(axes, [cv5, cv10], ["5-Year", "10-Year"]):
-    COLORS = {"Logistic Regression": "#2a78d6", "Random Forest": "#1baf7a",
-              "XGBoost": "#eda100", "LightGBM": "#008300"}
-    colors  = [COLORS[m] for m in res["Model"]]
-    err_lo  = res["CV AUROC (mean)"] - res["CV AUROC 95% CI lower"]
-    err_hi  = res["CV AUROC 95% CI upper"] - res["CV AUROC (mean)"]
-    bars = ax.bar(res["Model"], res["CV AUROC (mean)"], color=colors,
-                  edgecolor="white", yerr=[err_lo, err_hi], capsize=5)
-    ax.set_ylim(0.5, 1.0)
-    ax.set_ylabel("CV AUROC (mean ± 95% CI)")
-    ax.set_title(f"ESRD {horizon} — Model Comparison", fontsize=11, fontweight="bold")
-    ax.set_xticklabels(res["Model"], rotation=15, ha="right", fontsize=9)
-    ax.spines[["top","right"]].set_visible(False)
-    ax.axhline(0.5, color="grey", linestyle="--", lw=1, alpha=0.5)
-    for bar, val in zip(bars, res["CV AUROC (mean)"]):
-        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.013,
-                f"{val:.3f}", ha="center", fontsize=9)
-
-plt.tight_layout()
-fig.savefig(f"{FIG_DIR}/esrd_model_comparison.png", dpi=180, bbox_inches="tight")
-plt.close("all")
-print(f"Saved: {FIG_DIR}/esrd_model_comparison.png")
 print("\nDone.")

@@ -1,6 +1,6 @@
 """
 Lupus Nephritis Risk Calculator — Streamlit App
-Run: streamlit run src/app/app.py
+Run: streamlit run risk_calculator/app.py
 """
 
 import os
@@ -8,9 +8,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import joblib
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 APP_DIR   = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(APP_DIR, "models")
@@ -211,63 +208,6 @@ SUBEP_OPT = {
     "Large or conspicuous deposits":2,"No glomeruli on EM":3,
 }
 
-# Clean feature labels for contribution chart
-FEAT_LABELS = {
-    "% chronic gloms(%of total)":                                  "Chronic glomeruli (%)",
-    "%gloms with necrosis":                                        "Glomerular necrosis (%)",
-    "Age at biopsy":                                               "Age",
-    "Proteinuria at biopsy (uPCR, log)":                           "Proteinuria (uPCR)",
-    "Class coded 1=I 2=II 3=III 4=IV 5=V 6=III+V 7=IV+V 8=II+V 9=VI 10=other": "LN class",
-    "Ethnicity 1=white 2=black 3=asian (south) 4=asian (east) 5=other 6=not stated/unknown/any other mixed": "Ethnicity",
-    "% active gloms (%of those not globally sclerosed)":           "Active glomeruli (%)",
-    "%gloms with crescents":                                       "Crescents (%)",
-    "C4 at biopsy":                                                "C4",
-    "% sclerosed gloms":                                           "Sclerosed glomeruli (%)",
-    "dsDNA or SM or APL ever positive(1=yes 0=no)":                "dsDNA/SM/APL positive",
-    "Prev exposure to cyclo (for Rx comparison) - related to the 'use this biopsy for this patient' biopsy": "Prior cyclophosphamide",
-    "CKD epi formula without ethnicity":                           "eGFR",
-    "Reason for biopsy 1=new pres LN 2=relapse 3=non-response/partial response, incl on-going proteinuria 4=pre-pregnancy or Ax if drug switch/stop appropriate": "Biopsy indication",
-    "Creatinine at biopsy":                                        "Creatinine",
-    "%IFTA ":                                                      "IFTA (%)",
-    "Subepithelial deposit category (0=no deposits, 1=small/rare deposits, 2=large/conspicuous deposits, 3=no gloms on EM)": "Subepithelial deposits",
-    "C3 at biopsy (normal range 0.7-1.7)":                        "C3",
-    "C4 low (for range 0.15-0.54)":                               "C4 low",
-    "Crescents (Yes=1, No=0)":                                     "Crescents",
-    "TMA (Yes=1, No=0)":                                           "TMA",
-    "Cap wall IgM":                                                "Cap wall IgM",
-    "No. globally sclerosed gloms ":                               "Globally sclerosed gloms",
-    "Biopsy number for patient":                                   "Biopsy number",
-    "No. gloms with crescents":                                    "Gloms with crescents",
-    "Gender (1=male, 2=female)":                                   "Sex",
-}
-
-def _clean(name):
-    return FEAT_LABELS.get(name, name[:30])
-
-# Per-patient feature contributions (LR SHAP)
-def feature_contributions(analysis, df_row):
-    """
-    For LR pipeline (StandardScaler → LogisticRegression):
-      SHAP_i = coef_i × scaled_value_i
-    Also returns whether each feature is above/below the training mean.
-    """
-    clf      = MODELS[analysis]["lr"]
-    scaler   = clf.named_steps["s"]
-    lr       = clf.named_steps["clf"]
-    x_raw    = df_row.values[0]
-    x_sc     = scaler.transform(df_row.values)[0]
-    contribs = lr.coef_[0] * x_sc
-    features = FEAT_COLS[analysis]
-    # above_avg: True if patient value > training mean for that feature
-    above    = x_raw > scaler.mean_
-    df_c = pd.DataFrame({
-        "label":        [_clean(f) for f in features],
-        "contribution": contribs,
-        "above_avg":    above,
-    })
-    df_c = df_c.reindex(df_c["contribution"].abs().sort_values(ascending=True).index)
-    return df_c
-
 # Risk gauge HTML
 def risk_gauge_html(p, analysis):
     t      = YOUDEN_THRESH[analysis]
@@ -305,48 +245,6 @@ def risk_gauge_html(p, analysis):
   {action}
 </div>"""
 
-# Contribution bar chart
-def show_contributions(analysis, df_row):
-    df_c   = feature_contributions(analysis, df_row)
-    n      = len(df_c)
-    height = max(2.4, n * 0.42)
-
-    fig, ax = plt.subplots(figsize=(4.2, height))
-    colors  = ["#DA291C" if v > 0 else "#007F3B" for v in df_c["contribution"]]
-    bars    = ax.barh(range(n), df_c["contribution"], color=colors, height=0.55)
-    ax.axvline(0, color="#212b32", linewidth=0.8, zorder=3)
-
-    # Y-axis: feature name + above/below average tag
-    ylabels = []
-    for label, above in zip(df_c["label"], df_c["above_avg"]):
-        tag = "↑ above avg" if above else "↓ below avg"
-        ylabels.append(f"{label}  {tag}")
-    ax.set_yticks(range(n))
-    ax.set_yticklabels(ylabels, fontsize=7)
-
-    ax.set_xlabel("Contribution to risk score", fontsize=7,
-                  color="#4c6272", labelpad=4)
-    ax.tick_params(axis="x", labelsize=6.5)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-    ax.set_axisbelow(True)
-    ax.grid(axis="x", color="#e8e8e8", linewidth=0.5)
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-    plt.tight_layout(pad=0.7)
-
-    st.markdown(
-        '<p style="font-size:0.82rem;font-weight:700;color:#212b32;'
-        'margin:20px 0 2px 0;">What\'s driving this prediction?</p>'
-        '<p style="font-size:0.72rem;color:#4c6272;margin:0 0 6px 0;">'
-        '<span style="color:#DA291C;">&#9646;</span> increases risk &nbsp;'
-        '<span style="color:#007F3B;">&#9646;</span> decreases risk</p>',
-        unsafe_allow_html=True,
-    )
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
 # Core helpers
 def risk_tier(p, key):
     t = YOUDEN_THRESH[key]
@@ -372,8 +270,6 @@ def show_result(p, _clf_key, df_row, analysis):
     </div>""", unsafe_allow_html=True)
 
     st.markdown(risk_gauge_html(p, analysis), unsafe_allow_html=True)
-
-    show_contributions(analysis, df_row)
 
     st.markdown(
         '<div class="nhs-warning">'

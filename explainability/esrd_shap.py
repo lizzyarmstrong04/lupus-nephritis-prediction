@@ -5,13 +5,9 @@ Loads from feature-selected datasets; uses best params from 01_esrd_modelling.py
 
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import shap
 import warnings
 import json
-import os
 warnings.filterwarnings("ignore")
 
 from sklearn.preprocessing import StandardScaler
@@ -23,13 +19,6 @@ from lightgbm import LGBMClassifier
 
 PROCESSED_DIR = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/Data/Processed"
 OUT_DIR       = "/Users/elizabetharmstrong/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Lupus Project/outputs/esrd"
-
-MODEL_COLORS = {
-    "Logistic Regression": "#2a78d6",
-    "Random Forest":       "#1baf7a",
-    "XGBoost":             "#eda100",
-    "LightGBM":            "#008300",
-}
 
 with open(f"{OUT_DIR}/esrd_best_params.json") as f:
     BEST_PARAMS = json.load(f)
@@ -81,9 +70,6 @@ def run_shap(data_path, outcome_col, horizon_key, horizon_label):
     feat_names       = list(X.columns)
     scale_pos_weight = round((y == 0).sum() / (y == 1).sum(), 2)
 
-    shap_dir = f"{OUT_DIR}/figures/shap/{horizon_key}"
-    os.makedirs(shap_dir, exist_ok=True)
-
     models     = build_models(horizon_key, scale_pos_weight)
     shap_table = {}
 
@@ -97,8 +83,6 @@ def run_shap(data_path, outcome_col, horizon_key, horizon_label):
         clf    = pipeline.named_steps["clf"]
         scaler = pipeline.named_steps["s"]
         X_tr   = pd.DataFrame(scaler.transform(X), columns=feat_names)
-        safe   = name.replace(" ", "_").lower()
-        color  = MODEL_COLORS[name]
 
         if name == "Logistic Regression":
             explainer = shap.LinearExplainer(clf, X_tr,
@@ -122,30 +106,6 @@ def run_shap(data_path, outcome_col, horizon_key, horizon_label):
         mean_abs = np.abs(vals).mean(axis=0)
         shap_table[name] = dict(zip(feat_names, mean_abs.round(4)))
 
-        # Beeswarm
-        fig, ax = plt.subplots(figsize=(9, max(5, len(feat_names) * 0.45)))
-        shap.plots.beeswarm(sv, max_display=len(feat_names), show=False,
-                            plot_size=None, color_bar=True)
-        plt.title(f"SHAP Beeswarm — {name}\nESRD {horizon_label}",
-                  fontsize=12, pad=10)
-        plt.tight_layout()
-        fig.savefig(f"{shap_dir}/{safe}_beeswarm.png", dpi=180,
-                    bbox_inches="tight")
-        plt.close("all")
-
-        # Bar chart
-        fig, ax = plt.subplots(figsize=(8, max(4, len(feat_names) * 0.4)))
-        order = np.argsort(mean_abs)
-        ax.barh([feat_names[i] for i in order], mean_abs[order],
-                color=color, edgecolor="white", height=0.7)
-        ax.set_xlabel("Mean |SHAP value|", fontsize=11)
-        ax.set_title(f"Feature Importance — {name}\nESRD {horizon_label}",
-                     fontsize=12)
-        ax.spines[["top", "right"]].set_visible(False)
-        plt.tight_layout()
-        fig.savefig(f"{shap_dir}/{safe}_bar.png", dpi=180, bbox_inches="tight")
-        plt.close("all")
-
         print("done")
 
     # Cross-model summary table
@@ -158,30 +118,7 @@ def run_shap(data_path, outcome_col, horizon_key, horizon_label):
     print(shap_df.to_string())
 
     shap_df.to_excel(f"{OUT_DIR}/esrd_shap_table_{horizon_key}.xlsx")
-
-    # All-model grouped bar
-    n_feat   = len(feat_names)
-    n_models = len(models)
-    x        = np.arange(n_feat)
-    width    = 0.18
-
-    fig, ax = plt.subplots(figsize=(max(10, n_feat * 0.9), 6))
-    for i, mname in enumerate(models):
-        vals_plot = [shap_table[mname].get(f, 0) for f in shap_df.index]
-        ax.bar(x + i * width, vals_plot, width, label=mname,
-               color=MODEL_COLORS[mname], edgecolor="white")
-    ax.set_xticks(x + width * (n_models - 1) / 2)
-    ax.set_xticklabels(shap_df.index, rotation=35, ha="right", fontsize=8)
-    ax.set_ylabel("Mean |SHAP value|", fontsize=11)
-    ax.set_title(f"Feature Importance — All Models, ESRD {horizon_label}",
-                 fontsize=12)
-    ax.legend(fontsize=9)
-    ax.spines[["top", "right"]].set_visible(False)
-    plt.tight_layout()
-    fig.savefig(f"{shap_dir}/all_models_comparison.png", dpi=180,
-                bbox_inches="tight")
-    plt.close("all")
-    print(f"  Saved: {shap_dir}/")
+    print(f"  Saved: esrd_shap_table_{horizon_key}.xlsx")
 
 # Run for both horizons
 run_shap(f"{PROCESSED_DIR}/esrd_5yr_selected.xlsx",  "esrd_5yr",  "5yr",  "5-Year")
