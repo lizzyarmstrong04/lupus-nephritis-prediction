@@ -35,7 +35,7 @@ Each `cohorts/`, `preprocessing/`, and `feature_selection/` script is specific t
 ## Evaluation
 
 - **Internal validation**: 5×10-fold (5×5-fold for serial biopsy) repeated stratified CV, out-of-fold predictions
-- **Optimism correction**: Harrell bootstrap (1,000 iterations) — bias-corrected AUROC is the primary reported discrimination metric, not raw CV AUROC
+- **Optimism correction**: Harrell bootstrap (1,000 iterations), bias-corrected AUROC is the primary reported discrimination metric, not raw CV AUROC
 - **Pairwise comparisons**: DeLong's test on pooled OOF predictions, Bonferroni-Holm corrected
 - **Sample size adequacy**: post-hoc pmsampsize-style calculation (Riley et al. 2020, BMJ 368:m441)
 - **SHAP**: Linear explainer (logistic regression), tree explainer (ensemble models); cross-model mean |SHAP| rank-averaging
