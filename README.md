@@ -2,7 +2,7 @@
 
 Machine learning models for predicting clinical outcomes in lupus nephritis (LN), developed at Imperial College London.
 
-This repository contains the code implementing the analysis described in the dissertation's Methods, Supplementary Methods, and Results sections. Figure/table-generation code and document-drafting scripts are kept out of this repository (analysis code only).
+This repository contains the code implementing the analysis described in the dissertation's Methods, Supplementary Methods, and Results sections.
 
 ## Outcomes predicted
 
