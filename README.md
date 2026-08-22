@@ -1,44 +1,44 @@
 # Lupus Nephritis ML Prediction Models
 
-Machine learning models for predicting clinical outcomes in lupus nephritis (LN), developed at Imperial College London.
+Machine learning models predicting clinical outcomes in lupus nephritis (LN), developed at Imperial College London.
 
-This repository contains the code implementing the analysis described in the dissertation's Methods, Supplementary Methods, and Results sections. Figure/table-generation code and document-drafting scripts are kept out of this repository (analysis code only).
+This repository contains the code used for the analysis in the dissertation.
 
 ## Outcomes predicted
 
 | Cohort | n |
 |---|---|
-| 1-year flare | 430 |
-| 5-year flare | 356 |
-| Serial biopsy sub-cohort (5-year flare, ≥2 biopsies) | 70 |
-| ESRD 5-year | 796 |
-| ESRD 10-year | 796 |
+| 1 year flare | 430 |
+| 5 year flare | 356 |
+| Serial biopsy sub cohort (5 year flare, 2+ biopsies) | 70 |
+| ESRD 5 year | 796 |
+| ESRD 10 year | 796 |
 
-## Algorithms
+## Models
 
-Logistic Regression, Random Forest, XGBoost, LightGBM — with hyperparameter tuning (RandomizedSearchCV) for the tree-based models, evaluated via 5×10-fold repeated stratified cross-validation (5×5-fold for the serial-biopsy cohort, n=70). Benchmarked against TabPFN v3 (Prior Labs).
+Logistic Regression, Random Forest, XGBoost, LightGBM. The tree based models were tuned; logistic regression was left at default settings. All four were evaluated with repeated stratified cross validation (5 repeats of 10 folds; 5 repeats of 5 folds for the smaller serial biopsy cohort) and benchmarked against TabPFN v3 (Prior Labs).
 
 ## Repository structure
 
 ```
-cohorts/            # Cohort derivation, exclusion logic, composite ESRD outcome, serial-biopsy sub-cohort
-preprocessing/       # Missingness assessment, MICE imputation
-feature_selection/   # Six-step selection pipeline (leakage/correlation/VIF/EPV-capped LASSO)
-modelling/           # Model training, tuning, CV, Harrell bootstrap; TabPFN v3 benchmark
-evaluation/          # DeLong pairwise tests, bias-corrected AUROC + CI, pmsampsize, EPV sensitivity
-explainability/      # SHAP computation + cross-model rank-averaging
-risk_calculator/     # Streamlit risk calculator (scoring/banding logic) + saved models
+cohorts/            Cohort derivation, exclusion logic, composite ESRD outcome, serial biopsy sub cohort
+preprocessing/       Missingness assessment, MICE imputation
+feature_selection/   Six step selection pipeline (leakage, correlation, VIF, EPV capped LASSO)
+modelling/           Model training, tuning, cross validation, bootstrap; TabPFN v3 benchmark
+evaluation/          DeLong pairwise tests, bias corrected AUROC + CI, pmsampsize, EPV sensitivity
+explainability/      SHAP computation + cross model rank averaging
+risk_calculator/     Streamlit risk calculator (scoring/banding logic) + saved models
 ```
 
 Each `cohorts/`, `preprocessing/`, and `feature_selection/` script is specific to one cohort (filename prefix indicates which). ESRD's cohort derivation and feature selection are combined in `cohorts/esrd_cohort_and_features.py`, matching how that step is implemented.
 
 ## Evaluation
 
-- **Internal validation**: 5×10-fold (5×5-fold for serial biopsy) repeated stratified CV, out-of-fold predictions
-- **Optimism correction**: Harrell bootstrap (1,000 iterations) — bias-corrected AUROC is the primary reported discrimination metric, not raw CV AUROC
-- **Pairwise comparisons**: DeLong's test on pooled OOF predictions, Bonferroni-Holm corrected
-- **Sample size adequacy**: post-hoc pmsampsize-style calculation (Riley et al. 2020, BMJ 368:m441)
-- **SHAP**: Linear explainer (logistic regression), tree explainer (ensemble models); cross-model mean |SHAP| rank-averaging
+- **Internal validation**: repeated stratified cross validation, out of fold predictions
+- **Optimism correction**: Harrell bootstrap (1,000 iterations); bias corrected AUROC is the primary reported discrimination metric, not raw CV AUROC
+- **Pairwise comparisons**: DeLong's test on pooled out of fold predictions, Bonferroni Holm corrected
+- **Sample size adequacy**: post hoc calculation following Riley et al. 2020 (BMJ 368:m441)
+- **SHAP**: linear explainer (logistic regression), tree explainer (ensemble models); cross model mean SHAP rank averaging
 
 ## Requirements
 
@@ -54,7 +54,7 @@ streamlit run risk_calculator/app.py
 
 ## TabPFN benchmark
 
-Set your API token before running:
+Set your own API token before running:
 
 ```bash
 export TABPFN_TOKEN="your_token_here"
@@ -64,5 +64,5 @@ python modelling/tabpfn_v3_benchmark.py
 ## Notes
 
 - Patient data is not included in this repository
-- All hardcoded file paths reference `Data/Processed/` — update to your local data directory
+- File paths point to `Data/Processed/` on the original development machine; update these to your own local data directory before running
 - Models saved as `.joblib` in `risk_calculator/models/` contain fitted coefficients only, no patient data
