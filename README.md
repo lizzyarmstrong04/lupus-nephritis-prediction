@@ -16,7 +16,7 @@ This repository contains the code implementing the analysis described in the dis
 
 ## Algorithms
 
-Logistic Regression, Random Forest, XGBoost, LightGBM — with hyperparameter tuning (RandomizedSearchCV) for the tree-based models, evaluated via 5×10-fold repeated stratified cross-validation (5×5-fold for the serial-biopsy cohort, n=70). Benchmarked against TabPFN v3 (Prior Labs).
+Logistic Regression, Random Forest, XGBoost, LightGBM with hyperparameter tuning (RandomizedSearchCV) for the tree-based models, evaluated via 5×10-fold repeated stratified cross-validation (5×5-fold for the serial-biopsy cohort, n=70). Benchmarked against TabPFN v3 (Prior Labs).
 
 ## Repository structure
 
